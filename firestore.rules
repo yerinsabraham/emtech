@@ -12,6 +12,16 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
     
+    function isAdmin() {
+      return isAuthenticated() && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    function isLecturerOrAdmin() {
+      return isAuthenticated() && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['lecturer', 'admin'];
+    }
+    
     // Users collection
     match /users/{userId} {
       // Users can read their own data
@@ -35,8 +45,7 @@ service cloud.firestore {
       allow read: if true;
       
       // Only admins can create/update/delete books
-      // For now, no one can write (admin panel to be added)
-      allow write: if false;
+      allow write: if isAdmin();
     }
     
     // Courses collection
@@ -44,9 +53,8 @@ service cloud.firestore {
       // Anyone can read courses (for browsing)
       allow read: if true;
       
-      // Only admins/lecturers can create/update courses
-      // For now, no one can write (admin panel to be added)
-      allow write: if false;
+      // Only admins and lecturers can create/update courses
+      allow write: if isLecturerOrAdmin();
     }
     
     // Transactions collection
@@ -104,6 +112,73 @@ service cloud.firestore {
       
       // Only system can create certificates
       allow write: if false;
+    }
+    
+    // Stakes collection
+    match /stakes/{stakeId} {
+      // Users can read their own stakes
+      allow read: if isAuthenticated() 
+        && resource.data.userId == request.auth.uid;
+      
+      // Users can create their own stakes
+      allow create: if isAuthenticated() 
+        && request.resource.data.userId == request.auth.uid;
+      
+      // Users can update their own stakes (for unstaking)
+      allow update: if isAuthenticated() 
+        && resource.data.userId == request.auth.uid;
+      
+      // No deletes allowed
+      allow delete: if false;
+    }
+    
+    // Rewards collection
+    match /rewards/{rewardId} {
+      // Users can read their own rewards
+      allow read: if isAuthenticated() 
+        && resource.data.userId == request.auth.uid;
+      
+      // System creates rewards
+      allow create: if isAuthenticated();
+      
+      // No updates or deletes
+      allow update, delete: if false;
+    }
+    
+    // Content collection
+    match /content/{contentId} {
+      // Users can read content
+      allow read: if isAuthenticated();
+      
+      // Only lecturers and admins can create/update content
+      allow write: if isLecturerOrAdmin();
+    }
+    
+    // Loans collection
+    match /loans/{loanId} {
+      // Users can read their own loans
+      allow read: if isAuthenticated() 
+        && resource.data.userId == request.auth.uid;
+      
+      // Users can create their own loan requests
+      allow create: if isAuthenticated() 
+        && request.resource.data.userId == request.auth.uid;
+      
+      // Users can update their loans (for repayment), admins can approve
+      allow update: if (isAuthenticated() && resource.data.userId == request.auth.uid) 
+        || isAdmin();
+      
+      // No deletes
+      allow delete: if false;
+    }
+    
+    // Scholarships collection
+    match /scholarships/{scholarshipId} {
+      // Anyone can read available scholarships
+      allow read: if true;
+      
+      // Only admins can create/update scholarships
+      allow write: if isAdmin();
     }
   }
 }

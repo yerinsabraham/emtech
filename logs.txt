@@ -1,0 +1,27 @@
+-- LLDB integration loaded --
+warning: (arm64) /Users/apple/emtech/build/ios/iphoneos/Runner.app/Runner empty dSYM file detected, dSYM was created with an executable with no debug info.
+CLIENT OF UIKIT REQUIRES UPDATE: This process does not adopt UIScene lifecycle. This will become an assert in a future version.
+FlutterView implements focusItemsInRect: - caching for linear focus movement is limited as long as this view is on screen.
+Dart execution mode: JIT
+11.15.0 - [FirebaseCore][I-COR000005] No app has been configured yet.
+flutter: The Dart VM service is listening on http://127.0.0.1:60692/uMY9_D_nf3U=/
+App is being debugged, do not track this hang
+Hang detected: 0.43s (debugger attached, not reporting)
+App is being debugged, do not track this hang
+Hang detected: 4.35s (debugger attached, not reporting)
+Class CKBrowserSwitcherViewController overrides the -traitCollection getter, which is not supported. If you're trying to override traits, you must use the appropriate API.
+nw_endpoint_flow_failed_with_error [C1 2a00:1450:4006:816::200a.443 failed parent-flow (unsatisfied (No network route), ipv4, dns)] already failing, returning
+nw_connection_get_connected_socket_block_invoke [C1] Client called nw_connection_get_connected_socket on unconnected nw_connection
+TCP Conn 0x11afd6580 Failed : error 0:50 [50]
+flutter: Sample data already exists
+FlutterSemanticsScrollView implements focusItemsInRect: - caching for linear focus movement is limited as long as this view is on screen.
+11.15.0 - [FirebaseFirestore][I-FST000001] WriteStream (313163356531363938) Stream error: 'Permission denied: Missing or insufficient permissions.'
+11.15.0 - [FirebaseFirestore][I-FST000001] Write at books/4NzNzV97x2zUjKCzBHye failed: Missing or insufficient permissions.
+FlutterSemanticsScrollView implements focusItemsInRect: - caching for linear focus movement is limited as long as this view is on screen.
+FlutterSemanticsScrollView implements focusItemsInRect: - caching for linear focus movement is limited as long as this view is on screen.
+FlutterSemanticsScrollView implements focusItemsInRect: - caching for linear focus movement is limited as long as this view is on screen.
+FlutterSemanticsScrollView implements focusItemsInRect: - caching for linear focus movement is limited as long as this view is on screen.
+*** Terminating app due to uncaught exception 'NSInvalidArgumentException', reason: 'Your app is missing support for the following URL schemes: com.googleusercontent.apps.478526312567-e6folqlvl9113dckgtl4vkqe4bf0rgjr'
+*** First throw call stack:
+(0x19c49d0c0 0x199935abc 0x19c4fbd4c 0x1012495f8 0x101247f84 0x10117f168 0x10117e338 0x10118328c 0x10b6149b4 0x10b19334c 0x10226c584 0x102286064 0x1022a6f98 0x10227c548 0x10227c484 0x19c3efc30 0x19c393394 0x19c394adc 0x1e91c1454 0x19edb5274 0x19ed80a28 0x19ee62168 0x101114760 0x1011146d8 0x1011147dc 0x1c2e2df08)
+libc++abi: terminating due to uncaught exception of type NSException
