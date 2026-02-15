@@ -1,0 +1,48 @@
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "emtech-be4d4",
+          "appId": "1:478526312567:android:01227630f90b93e0b2b672",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "emtech-be4d4",
+          "appId": "1:478526312567:ios:83c069c3c47fc2dfb2b672",
+          "uploadDebugSymbols": false,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "macos": {
+        "default": {
+          "projectId": "emtech-be4d4",
+          "appId": "1:478526312567:ios:83c069c3c47fc2dfb2b672",
+          "uploadDebugSymbols": false,
+          "fileOutput": "macos/Runner/GoogleService-Info.plist"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "emtech-be4d4",
+          "configurations": {
+            "android": "1:478526312567:android:01227630f90b93e0b2b672",
+            "ios": "1:478526312567:ios:83c069c3c47fc2dfb2b2672",
+            "macos": "1:478526312567:ios:83c069c3c47fc2dfb2b672",
+            "web": "1:478526312567:web:4930c725cabfcecbb2b672",
+            "windows": "1:478526312567:web:a0881df4fe62e34eb2b672"
+          }
+        }
+      }
+    }
+  }
+}

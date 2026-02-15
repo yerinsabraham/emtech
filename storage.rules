@@ -1,0 +1,95 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isValidImageType() {
+      return request.resource.contentType.matches('image/.*');
+    }
+    
+    function isValidDocumentType() {
+      return request.resource.contentType.matches('application/pdf') 
+        || request.resource.contentType.matches('application/msword')
+        || request.resource.contentType.matches('application/vnd.openxmlformats-officedocument.*');
+    }
+    
+    function isValidVideoType() {
+      return request.resource.contentType.matches('video/.*');
+    }
+    
+    function isUnder10MB() {
+      return request.resource.size < 10 * 1024 * 1024;
+    }
+    
+    function isUnder100MB() {
+      return request.resource.size < 100 * 1024 * 1024;
+    }
+    
+    // User profile pictures
+    match /users/{userId}/profile/{fileName} {
+      // Users can read their own profile pictures
+      allow read: if isAuthenticated();
+      
+      // Users can upload their own profile picture
+      allow write: if isOwner(userId) 
+        && isValidImageType() 
+        && isUnder10MB();
+    }
+    
+    // Course materials (videos, documents, etc.)
+    match /courses/{courseId}/materials/{fileName} {
+      // Authenticated users (enrolled students) can read
+      allow read: if isAuthenticated();
+      
+      // Only lecturers/admins can upload (to be implemented)
+      allow write: if false; // Will be enabled with role-based access
+    }
+    
+    // Freemium content (publicly accessible)
+    match /freemium/{fileName} {
+      // Anyone can read freemium content
+      allow read: if true;
+      
+      // Only admins can upload
+      allow write: if false;
+    }
+    
+    // Assignment submissions
+    match /submissions/{userId}/{assignmentId}/{fileName} {
+      // Students can read their own submissions
+      allow read: if isOwner(userId);
+      
+      // Students can upload their own submissions
+      allow write: if isOwner(userId) 
+        && (isValidDocumentType() || isValidImageType()) 
+        && isUnder10MB();
+    }
+    
+    // Certificates (stored for redundancy alongside blockchain)
+    match /certificates/{userId}/{certificateId} {
+      // Certificates are publicly readable for verification
+      allow read: if true;
+      
+      // Only system can create certificates
+      allow write: if false;
+    }
+    
+    // Book covers
+    match /books/{bookId}/{allPaths=**} {
+      // Anyone can read book covers
+      allow read: if true;
+      
+      // Only admins can upload
+      allow write: if false;
+    }
+  }
+}

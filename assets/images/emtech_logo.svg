@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 80" width="400" height="80">
+  <style>
+    text { font-family: 'Arial Black', 'Helvetica Neue', Arial, sans-serif; font-weight: 900; }
+  </style>
+  <!-- EMTECH text -->
+  <text x="10" y="58" fill="white" font-size="48" letter-spacing="3">EMTECH</text>
+  <!-- SCHOOL background shape (slight parallelogram) -->
+  <path d="M 220,10 L 390,10 Q 395,10 395,16 L 385,64 Q 383,70 377,70 L 215,70 Q 210,70 212,64 Z" fill="white"/>
+  <!-- SCHOOL text -->
+  <text x="230" y="58" fill="black" font-size="48" letter-spacing="3">SCHOOL</text>
+</svg>

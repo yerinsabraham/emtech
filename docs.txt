@@ -1,0 +1,193 @@
+ MTech School Technical Blueprint
+To build the MTech School Online University platform incorporating live sessions, a native token ($EMC) reward system, and blockchain certificate integration.
+
+1. Development Roadmap & Priorities 🗺️
+Phase
+
+Key Focus Areas
+
+Output Goal
+
+Phase 1: Core MVP
+
+User Authentication, Live Class API Integration, Basic Enrollment, Payment Gateway Setup.
+
+Functional platform shell with secure login and live class capability.
+
+Phase 2: Academic & Content
+
+Lecturer Tools (Assignments, Grading), Admin Approval Workflows, Content Storage, Student Academic Dashboards.
+
+Full academic cycle management (content upload to grading submission).
+
+Phase 3: Tokenomics & Finance
+
+EMC Smart Contract, Internal Wallet System, Reward Distribution Logic, Staking Contract, Loan Qualification Backend.
+
+Functional token economy ($EMC) and integrated financial services.
+
+Phase 4: Graduation & Final
+
+Blockchain Certificate Contract (Minting), Scholarship Deposit/Escrow Logic, Certificate Verification Link Generation.
+
+Immutable, verifiable academic record system and final product delivery.
+
+2. Phase 1: Core MVP & Infrastructure 💻
+Component
+
+Technical Action Item
+
+Implementation Notes
+
+User Roles & Auth
+
+Define Admin, Lecturer, Student. Implement secure authentication.
+
+Lecturer accounts must be Admin-created only. Auto-create Student Profile and EMC Wallet upon student sign-up.
+
+Live Class System
+
+Integrate Zoom Video SDK or similar for embedded sessions.
+
+Custom UI ensures sessions created/started by Lecturer only.
+
+Class Notification
+
+Implement dashboard notifications and Countdown Timer.
+
+ 
+
+Card Payment Gateway
+
+Integrate Stripe/Paystack API with secure webhooks.
+
+ 
+
+Crypto Payment Gateway
+
+Develop system to generate unique wallet address per transaction.
+
+Payments are for 3-month Session/Semester.
+
+3. Phase 2: Academic & Content Management ⚙️
+Component
+
+Technical Action Item
+
+Workflow/Logic
+
+Content Storage
+
+Integrate AWS S3 with role-based ACLs.
+
+Admins for freemium, Lecturers for paid materials.
+
+Assignment Tools
+
+CRUD for assignments; push to enrolled students.
+
+Lecturers grade submissions via interface.
+
+Exam Workflow
+
+Lecturer submits questions → Pending_Admin_Approval.
+
+Admin manually approves before release based on timetable.
+
+Grading System
+
+Accept letter grades (A–E).
+
+Triggers EMC reward and certificate minting process.
+
+4. Phase 3: Tokenomics & Financial Systems 💰
+A. EMC Smart Contract (Blockchain)
+
+Component
+
+Technical Action Item
+
+Detail
+
+Token Contract
+
+Deploy ERC-20 smart contract (Polygon).
+
+Total Supply: 900 Million EMC.
+
+Wallet Management
+
+Implement secure internal wallets.
+
+Track redeemed/unredeemed balances.
+
+B. Reward System Logic (Backend & Database)
+
+Component
+
+Technical Action Item
+
+Allocation Logic
+
+Sign-Up & Paid Completion
+
+Allocate 1000 EMC (Freemium) / 2000 EMC (Paid).
+
+Redeemable only after completion.
+
+Grading Reward
+
+Tiered reward based on Grade (A–E).
+
+Applies to course pass and graduation.
+
+Tuition Payment
+
+Implement EMC payment discount post-listing.
+
+ 
+
+C. Staking & Loan System (Smart Contract & Backend)
+
+Component
+
+Technical Action Item
+
+Criteria & Disbursement
+
+Staking
+
+Deploy staking smart contract for locking EMC.
+
+Track staking level → activate Voting Power & Badge.
+
+Loan Qualification
+
+Implement checks: Grade, Staking Duration, KYC, Reference.
+
+ 
+
+Loan Disbursement
+
+Disburse funds in EMC. Manage repayment, interest, penalties.
+
+ 
+
+5. Phase 4: Graduation & Final Records 🎓
+Component
+
+Technical Action Item
+
+Logic Notes
+
+Certificate Blockchain
+
+Develop Certificate Smart Contract to mint record on-chain.
+
+QR code/unique link for verification.
+
+Scholarship Deposit
+
+Implement 30% Escrow for 100% scholarship recipients.
+
+Release upon graduation; forfeit if fail minimum mark.
