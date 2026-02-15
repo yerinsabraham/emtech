@@ -1,33 +1,33 @@
 {
   "project_info": {
-    "project_number": "YOUR_PROJECT_NUMBER",
-    "project_id": "YOUR_PROJECT_ID",
-    "storage_bucket": "YOUR_STORAGE_BUCKET"
+    "project_number": "478526312567",
+    "project_id": "emtech-be4d4",
+    "storage_bucket": "emtech-be4d4.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "YOUR_MOBILE_SDK_APP_ID",
+        "mobilesdk_app_id": "1:478526312567:android:01227630f90b93e0b2b672",
         "android_client_info": {
           "package_name": "com.emtech.emtech_school"
         }
       },
       "oauth_client": [
         {
-          "client_id": "YOUR_CLIENT_ID",
+          "client_id": "478526312567-vbsob86ous911sglspmeqr9gfk0tdr7s.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "YOUR_ANDROID_API_KEY"
+          "current_key": "AIzaSyDtAGygPzHwGO2AIWmx1GZ1i9AQfSW4kwc"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "YOUR_CLIENT_ID",
+              "client_id": "478526312567-vbsob86ous911sglspmeqr9gfk0tdr7s.apps.googleusercontent.com",
               "client_type": 3
             }
           ]
