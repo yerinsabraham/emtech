@@ -94,20 +94,25 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
+    return GestureDetector(
+      onTap: () {
+        // Dismiss keyboard when tapping outside text fields
+        FocusScope.of(context).unfocus();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
         ),
-      ),
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
+        body: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 // Logo
@@ -311,7 +316,8 @@ class _LoginPageState extends State<LoginPage> {
           ),
         ),
       ),
-    );
+    ), // Scaffold
+    ); // GestureDetector
   }
 
   Widget _buildTextField({
@@ -348,3 +354,4 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 }
+

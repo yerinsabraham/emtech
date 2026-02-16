@@ -60,7 +60,9 @@ class AuthService extends ChangeNotifier {
           email: email,
           name: name,
           role: role,
-          emcBalance: 0, // Start with 0 EMC, earn through activities
+          emcBalance: 1000, // Sign-up reward: 1000 EMC
+          availableEMC: 1000,
+          totalEMCEarned: 1000,
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
         );
@@ -69,6 +71,26 @@ class AuthService extends ChangeNotifier {
             .collection('users')
             .doc(credential.user!.uid)
             .set(newUser.toMap());
+
+        // Record the signup reward transaction
+        await _firestore.collection('transactions').add({
+          'userId': credential.user!.uid,
+          'type': 'earn',
+          'amount': 1000,
+          'description': 'Welcome Bonus - Sign-up Reward',
+          'relatedId': 'signup_reward',
+          'createdAt': Timestamp.fromDate(DateTime.now()),
+        });
+
+        // Create a reward record
+        await _firestore.collection('rewards').add({
+          'userId': credential.user!.uid,
+          'type': 'signup',
+          'amount': 1000.0,
+          'redeemed': true,
+          'createdAt': Timestamp.fromDate(DateTime.now()),
+          'redeemedAt': Timestamp.fromDate(DateTime.now()),
+        });
 
         _userModel = newUser;
         notifyListeners();
@@ -132,7 +154,9 @@ class AuthService extends ChangeNotifier {
             uid: userCredential.user!.uid,
             email: userCredential.user!.email ?? '',
             name: userCredential.user!.displayName ?? 'Student',
-            emcBalance: 0,
+            emcBalance: 1000, // Sign-up reward: 1000 EMC
+            availableEMC: 1000,
+            totalEMCEarned: 1000,
             photoUrl: userCredential.user!.photoURL,
             createdAt: DateTime.now(),
             updatedAt: DateTime.now(),
@@ -142,6 +166,26 @@ class AuthService extends ChangeNotifier {
               .collection('users')
               .doc(userCredential.user!.uid)
               .set(newUser.toMap());
+
+          // Record the signup reward transaction
+          await _firestore.collection('transactions').add({
+            'userId': userCredential.user!.uid,
+            'type': 'earn',
+            'amount': 1000,
+            'description': 'Welcome Bonus - Google Sign-in Reward',
+            'relatedId': 'signup_reward',
+            'createdAt': Timestamp.fromDate(DateTime.now()),
+          });
+
+          // Create a reward record
+          await _firestore.collection('rewards').add({
+            'userId': userCredential.user!.uid,
+            'type': 'signup',
+            'amount': 1000.0,
+            'redeemed': true,
+            'createdAt': Timestamp.fromDate(DateTime.now()),
+            'redeemedAt': Timestamp.fromDate(DateTime.now()),
+          });
 
           _userModel = newUser;
         } else {

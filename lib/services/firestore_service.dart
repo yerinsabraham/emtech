@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/book_model.dart';
 import '../models/transaction_model.dart';
 import '../models/course_model.dart';
+import '../config/mock_data_config.dart';
+import 'mock_data_service.dart';
 
 class FirestoreService extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -12,6 +14,11 @@ class FirestoreService extends ChangeNotifier {
   // ────────────────────────────────────────────
   
   Stream<List<BookModel>> getBooks({String? category}) {
+    // Use mock data if enabled
+    if (MockDataConfig.isEnabledFor('books')) {
+      return Stream.value(MockDataService.getMockBooks(category: category));
+    }
+    
     Query query = _firestore.collection('books');
     
     if (category != null && category != 'All Books') {
@@ -64,6 +71,11 @@ class FirestoreService extends ChangeNotifier {
   // ────────────────────────────────────────────
   
   Stream<List<CourseModel>> getCourses({String? category}) {
+    // Use mock data if enabled
+    if (MockDataConfig.isEnabledFor('courses')) {
+      return Stream.value(MockDataService.getMockCourses(category: category));
+    }
+    
     Query query = _firestore.collection('courses');
     
     if (category != null) {
