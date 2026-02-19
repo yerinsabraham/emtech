@@ -71,14 +71,19 @@ class _LoginPageState extends State<LoginPage> {
     final authService = context.read<AuthService>();
     final error = await authService.signInWithGoogle();
 
-    setState(() => _isLoading = false);
-
     if (error != null) {
+      setState(() => _isLoading = false);
       _showError(error);
     } else {
-      // Successfully logged in, go back to previous page
+      // Successfully logged in - wait for user data to load
       if (context.mounted) {
-        Navigator.of(context).pop();
+        // Wait a bit for user data to load
+        await Future.delayed(const Duration(milliseconds: 500));
+        setState(() => _isLoading = false);
+        
+        if (context.mounted) {
+          Navigator.of(context).pop();
+        }
       }
     }
   }
@@ -100,12 +105,18 @@ class _LoginPageState extends State<LoginPage> {
         FocusScope.of(context).unfocus();
       },
       child: Scaffold(
+        backgroundColor: const Color(0xFF080C14),
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => Navigator.of(context).pop(),
+            icon: const Icon(Icons.close, color: Colors.white),
+            onPressed: () {
+              // Go back to home page
+              if (Navigator.canPop(context)) {
+                Navigator.of(context).pop();
+              }
+            },
           ),
         ),
         body: SafeArea(

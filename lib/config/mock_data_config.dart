@@ -8,7 +8,7 @@ class MockDataConfig {
   static const bool useMockData = true;
   
   /// Enable specific mock data categories
-  static const bool mockCourses = true;
+  static const bool mockCourses = false;
   static const bool mockBooks = true;
   static const bool mockDailyTasks = true;
   static const bool mockScholarships = true;

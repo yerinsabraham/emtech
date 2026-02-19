@@ -67,6 +67,7 @@ class _CoursesListPageState extends State<CoursesListPage> {
                 _buildCategoryChip('All', 'All'),
                 _buildCategoryChip('Premium', 'Premium'),
                 _buildCategoryChip('Free', 'Freemium'),
+                _buildCategoryChip('Diploma', 'Diploma'),
               ],
             ),
           ),

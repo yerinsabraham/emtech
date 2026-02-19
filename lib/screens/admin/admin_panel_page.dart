@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/auth_service.dart';
 import '../../models/user_model.dart';
+import '../../services/diploma_courses_seeder.dart';
 import 'admin_certificates_tab.dart';
 import 'admin_scholarship_tab.dart';
 
@@ -656,38 +657,131 @@ class _CreateLecturerTabState extends State<_CreateLecturerTab> {
 // ─────────────────────────────────────────────
 // COURSES APPROVAL TAB (Placeholder)
 // ─────────────────────────────────────────────
-class _CoursesTab extends StatelessWidget {
+class _CoursesTab extends StatefulWidget {
   const _CoursesTab();
 
   @override
+  State<_CoursesTab> createState() => _CoursesTabState();
+}
+
+class _CoursesTabState extends State<_CoursesTab> {
+  bool _isSeeding = false;
+
+  Future<void> _seedDiplomaCourses() async {
+    setState(() => _isSeeding = true);
+    
+    final messenger = ScaffoldMessenger.of(context);
+    final seeder = DiplomaCoursesSeeder();
+    
+    try {
+      // Check if courses already exist
+      final exists = await seeder.diplomaCoursesExist();
+      
+      if (exists) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('✅ Diploma courses already exist in database'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 3),
+          ),
+        );
+        setState(() => _isSeeding = false);
+        return;
+      }
+      
+      // Seed the courses
+      await seeder.seedDiplomaCourses();
+      
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('✅ Successfully added 20 diploma courses!'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 4),
+        ),
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('❌ Error seeding courses: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSeeding = false);
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return const Center(
+    return Center(
       child: Padding(
-        padding: EdgeInsets.all(32.0),
+        padding: const EdgeInsets.all(32.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.construction,
+            const Icon(
+              Icons.school,
               size: 64,
-              color: Colors.white30,
+              color: Colors.blue,
             ),
-            SizedBox(height: 16),
-            Text(
-              'Course Approval',
+            const SizedBox(height: 24),
+            const Text(
+              'Diploma Courses Management',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
               ),
             ),
-            SizedBox(height: 8),
-            Text(
-              'Coming soon: Approve/reject courses created by lecturers',
+            const SizedBox(height: 12),
+            const Text(
+              'Add 20 pre-configured diploma courses to your database',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Colors.white54,
                 fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 32),
+            SizedBox(
+              width: 280,
+              height: 50,
+              child: ElevatedButton.icon(
+                onPressed: _isSeeding ? null : _seedDiplomaCourses,
+                icon: _isSeeding
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.cloud_upload),
+                label: Text(
+                  _isSeeding ? 'Seeding Courses...' : 'Seed Diploma Courses',
+                  style: const TextStyle(fontSize: 16),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.green.withOpacity(0.5),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              '💡 This will add courses for AI, Robotics, Blockchain, etc.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white38,
+                fontSize: 12,
               ),
             ),
           ],

@@ -11,19 +11,25 @@ class AuthService extends ChangeNotifier {
 
   User? _user;
   UserModel? _userModel;
+  bool _isLoadingUserData = false;
 
   User? get user => _user;
   User? get currentUser => _user;
   UserModel? get userModel => _userModel;
   bool get isAuthenticated => _user != null;
+  bool get isLoadingUserData => _isLoadingUserData;
 
   AuthService() {
-    _auth.authStateChanges().listen((User? user) {
+    _auth.authStateChanges().listen((User? user) async {
       _user = user;
       if (user != null) {
-        _loadUserData(user.uid);
+        _isLoadingUserData = true;
+        notifyListeners();
+        await _loadUserData(user.uid);
+        _isLoadingUserData = false;
       } else {
         _userModel = null;
+        _isLoadingUserData = false;
       }
       notifyListeners();
     });
@@ -34,10 +40,18 @@ class AuthService extends ChangeNotifier {
       final doc = await _firestore.collection('users').doc(uid).get();
       if (doc.exists) {
         _userModel = UserModel.fromMap(doc.data()!, uid);
+        debugPrint('✅ User data loaded - Role: ${_userModel?.role}');
         notifyListeners();
       }
     } catch (e) {
       debugPrint('Error loading user data: $e');
+    }
+  }
+
+  // Public method to force reload user data
+  Future<void> reloadUserData() async {
+    if (_user != null) {
+      await _loadUserData(_user!.uid);
     }
   }
 

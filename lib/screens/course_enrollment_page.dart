@@ -35,8 +35,8 @@ class _CourseEnrollmentPageState extends State<CourseEnrollmentPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isPremium = widget.course.category == 'Premium';
     final price = widget.course.priceEmc;
+    final isPaid = price > 0;
 
     return Scaffold(
       backgroundColor: const Color(0xFF080C14),
@@ -107,25 +107,27 @@ class _CourseEnrollmentPageState extends State<CourseEnrollmentPage> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
-                        color: isPremium ? const Color(0xFFFFD700).withOpacity(0.2) : const Color(0xFF4CAF50).withOpacity(0.2),
+                        color: isPaid
+                            ? const Color(0xFFFFD700).withOpacity(0.2)
+                            : const Color(0xFF4CAF50).withOpacity(0.2),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: isPremium ? const Color(0xFFFFD700) : const Color(0xFF4CAF50),
+                          color: isPaid ? const Color(0xFFFFD700) : const Color(0xFF4CAF50),
                         ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            isPremium ? Icons.star : Icons.card_giftcard,
-                            color: isPremium ? const Color(0xFFFFD700) : const Color(0xFF4CAF50),
+                            isPaid ? Icons.star : Icons.card_giftcard,
+                            color: isPaid ? const Color(0xFFFFD700) : const Color(0xFF4CAF50),
                             size: 18,
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            isPremium ? '$price EMC' : 'FREE',
+                            isPaid ? '$price EMC' : 'FREE',
                             style: TextStyle(
-                              color: isPremium ? const Color(0xFFFFD700) : const Color(0xFF4CAF50),
+                              color: isPaid ? const Color(0xFFFFD700) : const Color(0xFF4CAF50),
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
                             ),
@@ -177,7 +179,7 @@ class _CourseEnrollmentPageState extends State<CourseEnrollmentPage> {
                 ),
               ),
 
-              if (isPremium) ...[
+              if (isPaid) ...[
                 const SizedBox(height: 24),
 
                 // Payment Method Selection
@@ -238,7 +240,7 @@ class _CourseEnrollmentPageState extends State<CourseEnrollmentPage> {
                     ),
                   ),
                   child: Text(
-                    isPremium ? 'Pay $price EMC & Enroll' : 'Enroll for Free',
+                    isPaid ? 'Pay $price EMC & Enroll' : 'Enroll for Free',
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -274,7 +276,7 @@ class _CourseEnrollmentPageState extends State<CourseEnrollmentPage> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Earn ${isPremium ? "2000" : "1000"} EMC upon course completion!',
+                            'Earn ${isPaid ? "2000" : "1000"} EMC upon course completion!',
                             style: const TextStyle(
                               color: Color(0xFFFFD700),
                               fontSize: 13,
@@ -561,9 +563,9 @@ class _CourseEnrollmentPageState extends State<CourseEnrollmentPage> {
   }
 
   void _handleEnrollment() {
-    final isPremium = widget.course.category == 'Premium';
+    final isPaid = widget.course.priceEmc > 0;
     
-    if (isPremium && _paymentMethod == 'card') {
+    if (isPaid && _paymentMethod == 'card') {
       // Validate card fields
       if (_cardNumberController.text.isEmpty ||
           _cardHolderController.text.isEmpty ||
@@ -579,7 +581,7 @@ class _CourseEnrollmentPageState extends State<CourseEnrollmentPage> {
       }
     }
     
-    if (isPremium && _paymentMethod == 'crypto' && _cryptoAddress == null) {
+    if (isPaid && _paymentMethod == 'crypto' && _cryptoAddress == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please generate a payment address first'),
@@ -617,7 +619,7 @@ class _CourseEnrollmentPageState extends State<CourseEnrollmentPage> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            if (isPremium) ...[
+            if (isPaid) ...[
               const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.all(12),

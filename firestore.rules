@@ -24,16 +24,17 @@ service cloud.firestore {
     
     // Users collection
     match /users/{userId} {
-      // Users can read their own data
-      allow read: if isOwner(userId);
+      // Users can read their own data, admins can read all
+      allow read: if isOwner(userId) || isAdmin();
       
       // Users can create their own profile during signup
       allow create: if isOwner(userId);
       
-      // Users can update their own profile
+      // Users can update their own profile, admins can update any profile (for role management)
       allow update: if isOwner(userId) 
         && request.resource.data.uid == userId
-        && request.resource.data.email == resource.data.email; // Prevent email changes
+        && request.resource.data.email == resource.data.email // Prevent email changes
+        || isAdmin(); // Admins can update any user
       
       // No deletes allowed
       allow delete: if false;

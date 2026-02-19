@@ -3,25 +3,72 @@ warning: (arm64) /Users/apple/emtech/build/ios/iphoneos/Runner.app/Runner empty 
 CLIENT OF UIKIT REQUIRES UPDATE: This process does not adopt UIScene lifecycle. This will become an assert in a future version.
 FlutterView implements focusItemsInRect: - caching for linear focus movement is limited as long as this view is on screen.
 Dart execution mode: JIT
+flutter: The Dart VM service is listening on http://127.0.0.1:63856/IvrxcMHAR-E=/
 11.15.0 - [FirebaseCore][I-COR000005] No app has been configured yet.
-flutter: The Dart VM service is listening on http://127.0.0.1:60692/uMY9_D_nf3U=/
-App is being debugged, do not track this hang
-Hang detected: 0.43s (debugger attached, not reporting)
-App is being debugged, do not track this hang
-Hang detected: 4.35s (debugger attached, not reporting)
 Class CKBrowserSwitcherViewController overrides the -traitCollection getter, which is not supported. If you're trying to override traits, you must use the appropriate API.
-nw_endpoint_flow_failed_with_error [C1 2a00:1450:4006:816::200a.443 failed parent-flow (unsatisfied (No network route), ipv4, dns)] already failing, returning
-nw_connection_get_connected_socket_block_invoke [C1] Client called nw_connection_get_connected_socket on unconnected nw_connection
-TCP Conn 0x11afd6580 Failed : error 0:50 [50]
-flutter: Sample data already exists
+
+The OS has terminated the Flutter debug connection for being inactive in the background for too long.
+
+There are no errors with your Flutter application.
+
+To reconnect, launch your application again via 'flutter run'
+nw_endpoint_flow_failed_with_error [C2 2a00:1450:4006:820::200a.443 failed parent-flow (unsatisfied (No network route), ipv4, dns)] already failing, returning
+nw_connection_get_connected_socket_block_invoke [C2] Client called nw_connection_get_connected_socket on unconnected nw_connection
+TCP Conn 0x13938aee0 Failed : error 0:50 [50]
+flutter: ✅ User data loaded - Role: admin
 FlutterSemanticsScrollView implements focusItemsInRect: - caching for linear focus movement is limited as long as this view is on screen.
-11.15.0 - [FirebaseFirestore][I-FST000001] WriteStream (313163356531363938) Stream error: 'Permission denied: Missing or insufficient permissions.'
-11.15.0 - [FirebaseFirestore][I-FST000001] Write at books/4NzNzV97x2zUjKCzBHye failed: Missing or insufficient permissions.
 FlutterSemanticsScrollView implements focusItemsInRect: - caching for linear focus movement is limited as long as this view is on screen.
 FlutterSemanticsScrollView implements focusItemsInRect: - caching for linear focus movement is limited as long as this view is on screen.
 FlutterSemanticsScrollView implements focusItemsInRect: - caching for linear focus movement is limited as long as this view is on screen.
 FlutterSemanticsScrollView implements focusItemsInRect: - caching for linear focus movement is limited as long as this view is on screen.
-*** Terminating app due to uncaught exception 'NSInvalidArgumentException', reason: 'Your app is missing support for the following URL schemes: com.googleusercontent.apps.478526312567-e6folqlvl9113dckgtl4vkqe4bf0rgjr'
-*** First throw call stack:
-(0x19c49d0c0 0x199935abc 0x19c4fbd4c 0x1012495f8 0x101247f84 0x10117f168 0x10117e338 0x10118328c 0x10b6149b4 0x10b19334c 0x10226c584 0x102286064 0x1022a6f98 0x10227c548 0x10227c484 0x19c3efc30 0x19c393394 0x19c394adc 0x1e91c1454 0x19edb5274 0x19ed80a28 0x19ee62168 0x101114760 0x1011146d8 0x1011147dc 0x1c2e2df08)
-libc++abi: terminating due to uncaught exception of type NSException
+FlutterSemanticsScrollView implements focusItemsInRect: - caching for linear focus movement is limited as long as this view is on screen.
+FlutterSemanticsScrollView implements focusItemsInRect: - caching for linear focus movement is limited as long as this view is on screen.
+FlutterSemanticsScrollView implements focusItemsInRect: - caching for linear focus movement is limited as long as this view is on screen.
+flutter: ✅ Successfully seeded 20 diploma courses
+FlutterSemanticsScrollView implements focusItemsInRect: - caching for linear focus movement is limited as long as this view is on screen.
+FlutterSemanticsScrollView implements focusItemsInRect: - caching for linear focus movement is limited as long as this view is on screen.
+FlutterSemanticsScrollView implements focusItemsInRect: - caching for linear focus movement is limited as long as this view is on screen.
+FlutterSemanticsScrollView implements focusItemsInRect: - caching for linear focus movement is limited as long as this view is on screen.
+FlutterSemanticsScrollView implements focusItemsInRect: - caching for linear focus movement is limited as long as this view is on screen.
+FlutterSemanticsScrollView implements focusItemsInRect: - caching for linear focus movement is limited as long as this view is on screen.
+Unknown client: Runner
+AX Lookup problem - errorCode:1100 error:Permission denied portName:'com.apple.iphone.axserver' PID:5422 (
+	0   AXRuntime                           0x00000001c4d7e0ac _AXGetPortFromCache + 796
+	1   AXRuntime                           0x00000001c4d82b70 AXUIElementPerformFencedActionWithValue + 700
+	2   UIKit                               0x000000024908345c 5156CF99-D183-3D5A-844D-3BF027998A81 + 1561692
+	3   libdispatch.dylib                   0x0000000102a48584 _dispatch_call_block_and_release + 32
+	4   libdispatch.dylib                   0x0000000102a62064 _dispatch_client_callout + 16
+	5   libdispatch.dylib                   0x0000000102a5091c _dispatch_lane_serial_drain + 796
+	6   libdispatch.dylib                   0x0000000102a515a4 _dispatch_lane_invoke + 432
+	7   libdispatch.dylib                   0x0000000102a5d894 _dispatch_root_queue_drain_deferred_wlh + 344
+	8   libdispatch.dylib                   0x0000000102a5ceb0 _dispatch_workloop_worker_thread + 580
+	9   libsystem_pthread.dylib             0x0000000217604a0c _pthread_wqthread + 292
+	10  libsystem_pthread.dylib             0x0000000217604aac start_wqthread + 8
+)
+AX Lookup problem - errorCode:1100 error:Permission denied portName:'com.apple.iphone.axserver' PID:5422 (
+	0   AXRuntime                           0x00000001c4d7e0ac _AXGetPortFromCache + 796
+	1   AXRuntime                           0x00000001c4d82b70 AXUIElementPerformFencedActionWithValue + 700
+	2   UIKit                               0x000000024908345c 5156CF99-D183-3D5A-844D-3BF027998A81 + 1561692
+	3   libdispatch.dylib                   0x0000000102a48584 _dispatch_call_block_and_release + 32
+	4   libdispatch.dylib                   0x0000000102a62064 _dispatch_client_callout + 16
+	5   libdispatch.dylib                   0x0000000102a5091c _dispatch_lane_serial_drain + 796
+	6   libdispatch.dylib                   0x0000000102a515a4 _dispatch_lane_invoke + 432
+	7   libdispatch.dylib                   0x0000000102a5d894 _dispatch_root_queue_drain_deferred_wlh + 344
+	8   libdispatch.dylib                   0x0000000102a5ceb0 _dispatch_workloop_worker_thread + 580
+	9   libsystem_pthread.dylib             0x0000000217604a0c _pthread_wqthread + 292
+	10  libsystem_pthread.dylib             0x0000000217604aac start_wqthread + 8
+)
+AX Lookup problem - errorCode:1100 error:Permission denied portName:'com.apple.iphone.axserver' PID:5422 (
+	0   AXRuntime                           0x00000001c4d7e0ac _AXGetPortFromCache + 796
+	1   AXRuntime                           0x00000001c4d82b70 AXUIElementPerformFencedActionWithValue + 700
+	2   UIKit                               0x000000024908345c 5156CF99-D183-3D5A-844D-3BF027998A81 + 1561692
+	3   libdispatch.dylib                   0x0000000102a48584 _dispatch_call_block_and_release + 32
+	4   libdispatch.dylib                   0x0000000102a62064 _dispatch_client_callout + 16
+	5   libdispatch.dylib                   0x0000000102a5091c _dispatch_lane_serial_drain + 796
+	6   libdispatch.dylib                   0x0000000102a515a4 _dispatch_lane_invoke + 432
+	7   libdispatch.dylib                   0x0000000102a5d894 _dispatch_root_queue_drain_deferred_wlh + 344
+	8   libdispatch.dylib                   0x0000000102a5ceb0 _dispatch_workloop_worker_thread + 580
+	9   libsystem_pthread.dylib             0x0000000217604a0c _pthread_wqthread + 292
+	10  libsystem_pthread.dylib             0x0000000217604aac start_wqthread + 8
+)
+flutter: ✅ User data loaded - Role: admin

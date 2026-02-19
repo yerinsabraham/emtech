@@ -12,6 +12,18 @@ import 'screens/lecturer/lecturer_dashboard_page.dart';
 import 'screens/notifications_page.dart';
 import 'screens/wallet/enhanced_wallet_page.dart';
 import 'screens/student/loan_application_page.dart';
+import 'screens/edit_profile_page.dart';
+import 'screens/settings_page.dart';
+import 'screens/support_page.dart';
+import 'screens/learning_history_page.dart';
+import 'screens/saved_courses_page.dart';
+import 'screens/achievements_page.dart';
+import 'screens/courses_list_page.dart';
+import 'screens/about_info_desk_page.dart';
+import 'screens/blog_news_page.dart';
+import 'screens/daily_tasks_page.dart';
+import 'screens/scholarship_board_page.dart';
+import 'screens/student_forum_page.dart';
 import 'models/book_model.dart';
 import 'models/transaction_model.dart';
 
@@ -53,6 +65,14 @@ class MyApp extends StatelessWidget {
           ),
         ),
         home: const SplashScreen(),
+        routes: {
+          '/edit-profile': (context) => const EditProfilePage(),
+          '/settings': (context) => const SettingsPage(),
+          '/support': (context) => const SupportPage(),
+          '/learning-history': (context) => const LearningHistoryPage(),
+          '/saved-courses': (context) => const SavedCoursesPage(),
+          '/achievements': (context) => const AchievementsPage(),
+        },
       ),
     );
   }
@@ -88,24 +108,7 @@ class _SplashScreenState extends State<SplashScreen>
     Future.delayed(const Duration(seconds: 3), () async {
       if (!mounted) return;
       
-      final authService = context.read<AuthService>();
-      final firestoreService = context.read<FirestoreService>();
-      
-      // Seed sample data on first run (with timeout)
-      try {
-        await firestoreService.seedSampleData().timeout(
-          const Duration(seconds: 5),
-          onTimeout: () {
-            debugPrint('Seed data timeout - continuing anyway');
-          },
-        );
-      } catch (e) {
-        debugPrint('Error seeding data: $e - continuing anyway');
-      }
-      
-      if (!context.mounted) return;
-      
-      // Always route to homepage - users can explore without login
+      // Navigate to main app
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
           pageBuilder: (context, animation, secondaryAnimation) => const MainShell(),
@@ -213,15 +216,7 @@ class _MainShellState extends State<MainShell> {
       ];
     }
 
-    if (authService.isAdmin) {
-      // Admin view
-      return [
-        const HomePage(),
-        const AdminPanelPage(),
-        EnhancedWalletPage(userModel: authService.userModel!),
-        const ProfilePage(),
-      ];
-    } else if (authService.isLecturer) {
+    if (authService.isLecturer) {
       // Lecturer view
       return [
         const HomePage(),
@@ -230,7 +225,7 @@ class _MainShellState extends State<MainShell> {
         const ProfilePage(),
       ];
     } else {
-      // Student view (default)
+      // Student and Admin view (both use same nav: Home, Bookshop, Wallet, Profile)
       return [
         const HomePage(),
         const BookshopPage(),
@@ -291,55 +286,7 @@ class _MainShellState extends State<MainShell> {
       ];
     }
 
-    if (authService.isAdmin) {
-      // Admin navigation
-      return const [
-        BottomNavigationBarItem(
-          icon: Padding(
-            padding: EdgeInsets.only(bottom: 3),
-            child: Icon(Icons.home_outlined),
-          ),
-          activeIcon: Padding(
-            padding: EdgeInsets.only(bottom: 3),
-            child: Icon(Icons.home_rounded),
-          ),
-          label: 'Home',
-        ),
-        BottomNavigationBarItem(
-          icon: Padding(
-            padding: EdgeInsets.only(bottom: 3),
-            child: Icon(Icons.admin_panel_settings_outlined),
-          ),
-          activeIcon: Padding(
-            padding: EdgeInsets.only(bottom: 3),
-            child: Icon(Icons.admin_panel_settings),
-          ),
-          label: 'Admin',
-        ),
-        BottomNavigationBarItem(
-          icon: Padding(
-            padding: EdgeInsets.only(bottom: 3),
-            child: Icon(Icons.account_balance_wallet_outlined),
-          ),
-          activeIcon: Padding(
-            padding: EdgeInsets.only(bottom: 3),
-            child: Icon(Icons.account_balance_wallet_rounded),
-          ),
-          label: 'Wallet',
-        ),
-        BottomNavigationBarItem(
-          icon: Padding(
-            padding: EdgeInsets.only(bottom: 3),
-            child: Icon(Icons.person_outline_rounded),
-          ),
-          activeIcon: Padding(
-            padding: EdgeInsets.only(bottom: 3),
-            child: Icon(Icons.person_rounded),
-          ),
-          label: 'Profile',
-        ),
-      ];
-    } else if (authService.isLecturer) {
+    if (authService.isLecturer) {
       // Lecturer navigation
       return const [
         BottomNavigationBarItem(
@@ -441,6 +388,19 @@ class _MainShellState extends State<MainShell> {
   @override
   Widget build(BuildContext context) {
     final authService = context.watch<AuthService>();
+    
+    // Show loading screen while user data is being loaded
+    if (authService.isAuthenticated && authService.isLoadingUserData) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF080C14),
+        body: Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+          ),
+        ),
+      );
+    }
+    
     final pages = _getPagesForRole(authService);
     final navItems = _getNavItemsForRole(authService);
 
@@ -465,9 +425,19 @@ class _MainShellState extends State<MainShell> {
             final requiresAuth = [2, 3]; // Wallet (2) and Profile (3) require auth
             
             if (requiresAuth.contains(i) && !authService.isAuthenticated) {
-              // Show login page
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (context) => const LoginPage()),
+              // Show login modal
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (context) => Container(
+                  height: MediaQuery.of(context).size.height * 0.9,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF080C14),
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                  ),
+                  child: const LoginPage(),
+                ),
               );
             } else {
               setState(() => _currentIndex = i);
@@ -597,7 +567,13 @@ class _HomePageState extends State<HomePage> {
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton(
-                        onPressed: () {},
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => const CoursesListPage(),
+                            ),
+                          );
+                        },
                         style: OutlinedButton.styleFrom(
                           side: const BorderSide(color: Colors.white24),
                           padding: const EdgeInsets.symmetric(vertical: 14),
@@ -645,7 +621,7 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(height: 26),
 
               // ── Feature Cards ──
-              // Row 1: Freemium Courses + Enroll for Diploma
+              // Row 1: Freemium Courses + About/Info Desk
               Row(
                 children: [
                   Expanded(
@@ -759,7 +735,28 @@ class _HomePageState extends State<HomePage> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () {},
+          onTap: () {
+            Widget? page;
+            switch (title) {
+              case 'Freemium\nCourses':
+                page = const CoursesListPage();
+                break;
+              case 'About /\nInfo Desk':
+                page = const AboutInfoDeskPage();
+                break;
+              case 'Blog /\nNews':
+                page = const BlogNewsPage();
+                break;
+              case 'Support':
+                page = const SupportPage();
+                break;
+            }
+            if (page != null) {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => page!),
+              );
+            }
+          },
           borderRadius: BorderRadius.circular(16),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
@@ -800,7 +797,25 @@ class _HomePageState extends State<HomePage> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () {},
+          onTap: () {
+            Widget? page;
+            switch (title) {
+              case 'Daily\nTask':
+                page = const DailyTasksPage();
+                break;
+              case 'Scholarship\nBoard':
+                page = const ScholarshipBoardPage();
+                break;
+              case 'Student\nForum':
+                page = const StudentForumPage();
+                break;
+            }
+            if (page != null) {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => page!),
+              );
+            }
+          },
           borderRadius: BorderRadius.circular(14),
           child: Padding(
             padding: const EdgeInsets.all(12.0),
@@ -847,8 +862,19 @@ class _HomePageState extends State<HomePage> {
             MaterialPageRoute(builder: (context) => const NotificationsPage()),
           );
         } else {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (context) => const LoginPage()),
+          // Show login modal
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: Colors.transparent,
+            builder: (context) => Container(
+              height: MediaQuery.of(context).size.height * 0.9,
+              decoration: const BoxDecoration(
+                color: Color(0xFF080C14),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: const LoginPage(),
+            ),
           );
         }
       },
@@ -1033,8 +1059,18 @@ class _BookshopPageState extends State<BookshopPage> {
             
             // Check if user is authenticated
             if (!authService.isAuthenticated) {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (context) => const LoginPage()),
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (context) => Container(
+                  height: MediaQuery.of(context).size.height * 0.9,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF080C14),
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                  ),
+                  child: const LoginPage(),
+                ),
               );
               return;
             }
@@ -1597,15 +1633,29 @@ class ProfilePage extends StatelessWidget {
 
               const SizedBox(height: 32),
 
+              // Admin Dashboard (only for admins)
+              if (authService.isAdmin)
+                _buildMenuItem(
+                  context,
+                  Icons.admin_panel_settings,
+                  'Admin Dashboard',
+                  () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AdminPanelPage(),
+                      ),
+                    );
+                  },
+                ),
+
               // Menu Items
               _buildMenuItem(
                 context,
                 Icons.person_outline,
                 'Edit Profile',
                 () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Edit Profile - Coming soon!')),
-                  );
+                  Navigator.pushNamed(context, '/edit-profile');
                 },
               ),
               _buildMenuItem(
@@ -1613,9 +1663,7 @@ class ProfilePage extends StatelessWidget {
                 Icons.history,
                 'Learning History',
                 () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Learning History - Coming soon!')),
-                  );
+                  Navigator.pushNamed(context, '/learning-history');
                 },
               ),
               _buildMenuItem(
@@ -1623,9 +1671,7 @@ class ProfilePage extends StatelessWidget {
                 Icons.bookmark_outline,
                 'Saved Courses',
                 () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Saved Courses - Coming soon!')),
-                  );
+                  Navigator.pushNamed(context, '/saved-courses');
                 },
               ),
               _buildMenuItem(
@@ -1633,9 +1679,7 @@ class ProfilePage extends StatelessWidget {
                 Icons.emoji_events_outlined,
                 'Achievements',
                 () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Achievements - Coming soon!')),
-                  );
+                  Navigator.pushNamed(context, '/achievements');
                 },
               ),
               _buildMenuItem(
@@ -1643,9 +1687,7 @@ class ProfilePage extends StatelessWidget {
                 Icons.settings_outlined,
                 'Settings',
                 () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Settings - Coming soon!')),
-                  );
+                  Navigator.pushNamed(context, '/settings');
                 },
               ),
               _buildMenuItem(
@@ -1653,9 +1695,7 @@ class ProfilePage extends StatelessWidget {
                 Icons.help_outline,
                 'Help & Support',
                 () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Help & Support - Coming soon!')),
-                  );
+                  Navigator.pushNamed(context, '/support');
                 },
               ),
               const SizedBox(height: 12),
