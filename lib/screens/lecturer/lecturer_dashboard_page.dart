@@ -1,20 +1,11 @@
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:file_picker/file_picker.dart';
-import 'dart:io';
-import '../../services/auth_service.dart';
-import '../../models/course_model.dart';
-import '../../models/assignment_model.dart';
-import '../../models/exam_model.dart';
-import '../../models/content_model.dart';
-import '../../models/submission_model.dart';
-import '../../services/assignment_service.dart';
-import '../../services/exam_service.dart';
-import '../../services/content_service.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'phase2_widgets.dart';
+import 'package:provider/provider.dart';
+import '../../models/course_model.dart';
+import '../../services/auth_service.dart';
 import 'lecturer_certificates_tab.dart';
+import 'phase2_widgets.dart';
 
 class LecturerDashboardPage extends StatefulWidget {
   const LecturerDashboardPage({super.key});
@@ -358,9 +349,8 @@ class _CourseCard extends StatelessWidget {
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: () {
-                          // TODO: Navigate to course details/edit
-                        },
+                        onPressed: () =>
+                            _showEditCourseDialog(context, course),
                         icon: const Icon(Icons.edit, size: 16),
                         label: const Text('Edit'),
                         style: OutlinedButton.styleFrom(
@@ -372,9 +362,8 @@ class _CourseCard extends StatelessWidget {
                     const SizedBox(width: 8),
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: () {
-                          // TODO: View students
-                        },
+                        onPressed: () =>
+                            _showCourseStudents(context, course),
                         icon: const Icon(Icons.people, size: 16),
                         label: const Text('Students'),
                         style: OutlinedButton.styleFrom(
@@ -392,6 +381,354 @@ class _CourseCard extends StatelessWidget {
       ),
     );
   }
+}
+
+// ─────────────────────────────────────────────
+// COURSE EDIT & STUDENTS HELPERS
+// ─────────────────────────────────────────────
+
+void _showEditCourseDialog(BuildContext context, CourseModel course) {
+  showDialog(
+    context: context,
+    builder: (_) => _EditCourseDialog(course: course),
+  );
+}
+
+class _EditCourseDialog extends StatefulWidget {
+  final CourseModel course;
+  const _EditCourseDialog({required this.course});
+
+  @override
+  State<_EditCourseDialog> createState() => _EditCourseDialogState();
+}
+
+class _EditCourseDialogState extends State<_EditCourseDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _titleCtrl;
+  late final TextEditingController _descCtrl;
+  late final TextEditingController _priceCtrl;
+  late final TextEditingController _imageCtrl;
+  late String _selectedCategory;
+  bool _loading = false;
+
+  final List<String> _categories = [
+    'Design', 'Development', 'Business', 'Marketing',
+    'Data Science', 'Engineering', 'Health', 'Other',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _titleCtrl = TextEditingController(text: widget.course.title);
+    _descCtrl = TextEditingController(text: widget.course.description);
+    _priceCtrl =
+        TextEditingController(text: widget.course.priceEmc.toString());
+    _imageCtrl =
+        TextEditingController(text: widget.course.thumbnailUrl ?? '');
+    _selectedCategory = _categories.contains(widget.course.category)
+        ? widget.course.category
+        : _categories.first;
+  }
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _descCtrl.dispose();
+    _priceCtrl.dispose();
+    _imageCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _loading = true);
+    try {
+      await FirebaseFirestore.instance
+          .collection('courses')
+          .doc(widget.course.id)
+          .update({
+        'title': _titleCtrl.text.trim(),
+        'description': _descCtrl.text.trim(),
+        'category': _selectedCategory,
+        'priceEmc': int.tryParse(_priceCtrl.text) ?? widget.course.priceEmc,
+        'thumbnailUrl': _imageCtrl.text.trim().isEmpty
+            ? null
+            : _imageCtrl.text.trim(),
+      });
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Course updated!'),
+              backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: const Color(0xFF111C2F),
+      title: const Text('Edit Course', style: TextStyle(color: Colors.white)),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: SingleChildScrollView(
+          child: Form(
+            key: _formKey,
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              _field(_titleCtrl, 'Title', Icons.title,
+                  validator: (v) =>
+                      v!.trim().isEmpty ? 'Required' : null),
+              const SizedBox(height: 12),
+              _field(_descCtrl, 'Description', Icons.description,
+                  maxLines: 3),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: _selectedCategory,
+                decoration: _dec('Category', Icons.category),
+                dropdownColor: const Color(0xFF0B1120),
+                style: const TextStyle(color: Colors.white),
+                items: _categories
+                    .map((c) =>
+                        DropdownMenuItem(value: c, child: Text(c)))
+                    .toList(),
+                onChanged: (v) {
+                  if (v != null) setState(() => _selectedCategory = v);
+                },
+              ),
+              const SizedBox(height: 12),
+              _field(_priceCtrl, 'Price (EMC)', Icons.monetization_on,
+                  keyboardType: TextInputType.number,
+                  validator: (v) =>
+                      int.tryParse(v ?? '') == null ? 'Enter a number' : null),
+              const SizedBox(height: 12),
+              _field(_imageCtrl, 'Thumbnail URL (optional)', Icons.image),
+            ]),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+            onPressed: _loading ? null : () => Navigator.pop(context),
+            child: const Text('Cancel')),
+        ElevatedButton(
+          onPressed: _loading ? null : _save,
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+          child: _loading
+              ? const SizedBox(
+                  height: 16,
+                  width: 16,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Colors.white))
+              : const Text('Save'),
+        ),
+      ],
+    );
+  }
+
+  InputDecoration _dec(String label, IconData icon) => InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(color: Colors.white54),
+        prefixIcon: Icon(icon, color: Colors.white54),
+        filled: true,
+        fillColor: const Color(0xFF0B1120),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: Color(0xFF1A2940))),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: Color(0xFF1A2940))),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: Colors.blue, width: 2)),
+      );
+
+  Widget _field(
+    TextEditingController ctrl,
+    String label,
+    IconData icon, {
+    int maxLines = 1,
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+  }) =>
+      TextFormField(
+        controller: ctrl,
+        maxLines: maxLines,
+        keyboardType: keyboardType,
+        style: const TextStyle(color: Colors.white),
+        decoration: _dec(label, icon),
+        validator: validator,
+      );
+}
+
+void _showCourseStudents(BuildContext context, CourseModel course) {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: const Color(0xFF0B1120),
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (_) => DraggableScrollableSheet(
+      initialChildSize: 0.6,
+      maxChildSize: 0.9,
+      minChildSize: 0.3,
+      expand: false,
+      builder: (ctx, controller) {
+        return Column(children: [
+          Container(
+            margin:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            height: 4,
+            width: 40,
+            decoration: BoxDecoration(
+                color: Colors.white24,
+                borderRadius: BorderRadius.circular(2)),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(children: [
+              const Icon(Icons.people, color: Colors.blue),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(course.title,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold)),
+                      const Text('Enrolled Students',
+                          style: TextStyle(
+                              color: Colors.white54, fontSize: 12)),
+                    ]),
+              ),
+            ]),
+          ),
+          const Divider(color: Color(0xFF1A2940), height: 20),
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('enrollments')
+                  .where('courseId', isEqualTo: course.id)
+                  .orderBy('enrolledAt', descending: true)
+                  .snapshots(),
+              builder: (context, snap) {
+                if (snap.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final docs = snap.data?.docs ?? [];
+                if (docs.isEmpty) {
+                  return const Center(
+                    child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.person_off,
+                              size: 48, color: Colors.white24),
+                          SizedBox(height: 12),
+                          Text('No students enrolled yet',
+                              style: TextStyle(color: Colors.white54)),
+                        ]),
+                  );
+                }
+                return ListView.builder(
+                  controller: controller,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: docs.length,
+                  itemBuilder: (context, i) {
+                    final data =
+                        docs[i].data() as Map<String, dynamic>;
+                    final userId =
+                        data['userId'] as String? ?? '';
+                    final progress =
+                        (data['progress'] as num?)?.toInt() ?? 0;
+                    return FutureBuilder<DocumentSnapshot>(
+                      future: FirebaseFirestore.instance
+                          .collection('users')
+                          .doc(userId)
+                          .get(),
+                      builder: (context, userSnap) {
+                        final ud = userSnap.data?.data()
+                            as Map<String, dynamic>?;
+                        final name = ud?['name'] ?? 'Student';
+                        final email = ud?['email'] ?? '';
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF111C2F),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                                color: const Color(0xFF1A2940)),
+                          ),
+                          child: Row(children: [
+                            CircleAvatar(
+                              radius: 18,
+                              backgroundColor:
+                                  const Color(0xFF1A2940),
+                              child: Text(
+                                name.isNotEmpty
+                                    ? name[0].toUpperCase()
+                                    : '?',
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Text(name,
+                                        style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight:
+                                                FontWeight.w600)),
+                                    Text(email,
+                                        style: const TextStyle(
+                                            color: Colors.white54,
+                                            fontSize: 12)),
+                                  ]),
+                            ),
+                            Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.end,
+                                children: [
+                                  const Text('Progress',
+                                      style: TextStyle(
+                                          color: Colors.white38,
+                                          fontSize: 10)),
+                                  Text('$progress%',
+                                      style: const TextStyle(
+                                          color: Colors.white70,
+                                          fontSize: 14,
+                                          fontWeight:
+                                              FontWeight.bold)),
+                                ]),
+                          ]),
+                        );
+                      },
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ]);
+      },
+    ),
+  );
 }
 
 // ─────────────────────────────────────────────
@@ -738,56 +1075,235 @@ class _LiveClassCard extends StatelessWidget {
 // ─────────────────────────────────────────────
 // STUDENTS TAB
 // ─────────────────────────────────────────────
-class _StudentsTab extends StatelessWidget {
+class _StudentsTab extends StatefulWidget {
   const _StudentsTab();
 
   @override
+  State<_StudentsTab> createState() => _StudentsTabState();
+}
+
+class _StudentsTabState extends State<_StudentsTab> {
+  String? _selectedCourseId;
+  String? _selectedCourseName;
+
+  @override
   Widget build(BuildContext context) {
-    final authService = context.watch<AuthService>();
-    final currentUser = authService.currentUser;
-
-    if (currentUser == null) {
-      return const Center(
-        child: Text(
-          'Please login to view students',
-          style: TextStyle(color: Colors.white54),
-        ),
-      );
-    }
-
-    // TODO: Need to implement enrollments collection to track students per course
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(32.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.people_outline,
-              size: 64,
-              color: Colors.white30,
-            ),
-            SizedBox(height: 16),
-            Text(
-              'Student Management',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
+    final uid = context.watch<AuthService>().userModel?.uid ?? '';
+    return Column(children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+        child: StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('courses')
+              .where('instructorId', isEqualTo: uid)
+              .snapshots(),
+          builder: (context, snap) {
+            final courses = snap.data?.docs ?? [];
+            if (courses.isEmpty && snap.connectionState != ConnectionState.waiting) {
+              return const Text('No courses yet',
+                  style: TextStyle(color: Colors.white54));
+            }
+            return DropdownButtonFormField<String>(
+              value: _selectedCourseId,
+              decoration: InputDecoration(
+                labelText: 'Select Course',
+                labelStyle: const TextStyle(color: Colors.white54),
+                prefixIcon:
+                    const Icon(Icons.school, color: Colors.white54),
+                filled: true,
+                fillColor: const Color(0xFF0B1120),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide:
+                        const BorderSide(color: Color(0xFF1A2940))),
+                enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide:
+                        const BorderSide(color: Color(0xFF1A2940))),
               ),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'View and manage students enrolled in your courses',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white54,
-                fontSize: 14,
-              ),
-            ),
-          ],
+              dropdownColor: const Color(0xFF111C2F),
+              style: const TextStyle(color: Colors.white),
+              hint: const Text('Choose a course to view students',
+                  style: TextStyle(color: Colors.white54)),
+              items: courses.map((doc) {
+                final d = doc.data() as Map<String, dynamic>;
+                return DropdownMenuItem(
+                    value: doc.id, child: Text(d['title'] ?? ''));
+              }).toList(),
+              onChanged: (v) {
+                if (v != null) {
+                  final doc =
+                      courses.firstWhere((d) => d.id == v);
+                  setState(() {
+                    _selectedCourseId = v;
+                    _selectedCourseName =
+                        (doc.data() as Map<String, dynamic>)['title'];
+                  });
+                }
+              },
+            );
+          },
         ),
       ),
+      if (_selectedCourseId != null)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+          child: Row(children: [
+            const Icon(Icons.people, size: 14, color: Colors.white54),
+            const SizedBox(width: 6),
+            Text('Students in $_selectedCourseName',
+                style:
+                    const TextStyle(color: Colors.white70, fontSize: 13)),
+          ]),
+        ),
+      Expanded(
+        child: _selectedCourseId == null
+            ? Center(
+                child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      Icon(Icons.people_outline,
+                          size: 64, color: Colors.white24),
+                      SizedBox(height: 16),
+                      Text('Select a course above to view students',
+                          style: TextStyle(
+                              color: Colors.white54, fontSize: 14)),
+                    ]),
+              )
+            : StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('enrollments')
+                    .where('courseId', isEqualTo: _selectedCourseId)
+                    .orderBy('enrolledAt', descending: true)
+                    .snapshots(),
+                builder: (context, snap) {
+                  if (snap.connectionState == ConnectionState.waiting) {
+                    return const Center(
+                        child: CircularProgressIndicator());
+                  }
+                  final docs = snap.data?.docs ?? [];
+                  if (docs.isEmpty) {
+                    return const Center(
+                      child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.person_off,
+                                size: 48, color: Colors.white24),
+                            SizedBox(height: 12),
+                            Text('No students enrolled yet',
+                                style:
+                                    TextStyle(color: Colors.white54)),
+                          ]),
+                    );
+                  }
+                  return ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: docs.length,
+                    itemBuilder: (context, i) =>
+                        _StudentEnrollmentTile(enrollment: docs[i]),
+                  );
+                },
+              ),
+      ),
+    ]);
+  }
+}
+
+class _StudentEnrollmentTile extends StatelessWidget {
+  final QueryDocumentSnapshot enrollment;
+  const _StudentEnrollmentTile({required this.enrollment});
+
+  @override
+  Widget build(BuildContext context) {
+    final data = enrollment.data() as Map<String, dynamic>;
+    final userId = data['userId'] as String? ?? '';
+    final progress = (data['progress'] as num?)?.toInt() ?? 0;
+    final enrolledAt = data['enrolledAt'] is Timestamp
+        ? (data['enrolledAt'] as Timestamp).toDate()
+        : DateTime.now();
+
+    return FutureBuilder<DocumentSnapshot>(
+      future: FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .get(),
+      builder: (context, snap) {
+        final ud = snap.data?.data() as Map<String, dynamic>?;
+        final name = ud?['name'] ?? 'Student';
+        final email = ud?['email'] ?? '';
+        return Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: const Color(0xFF111C2F),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFF1A2940)),
+          ),
+          child: Row(children: [
+            CircleAvatar(
+              radius: 20,
+              backgroundColor: const Color(0xFF1A2940),
+              child: Text(
+                name.isNotEmpty ? name[0].toUpperCase() : '?',
+                style: const TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(name,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600)),
+                    Text(email,
+                        style: const TextStyle(
+                            color: Colors.white54, fontSize: 12)),
+                    const SizedBox(height: 4),
+                    Row(children: [
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: progress / 100,
+                            backgroundColor: const Color(0xFF1A2940),
+                            valueColor: const AlwaysStoppedAnimation(
+                                Colors.blue),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text('$progress%',
+                          style: const TextStyle(
+                              color: Colors.white54, fontSize: 11)),
+                    ]),
+                  ]),
+            ),
+            const SizedBox(width: 8),
+            Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+              Text(DateFormat('MMM d').format(enrolledAt),
+                  style: const TextStyle(
+                      color: Colors.white38, fontSize: 11)),
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(
+                      color: Colors.green.withOpacity(0.4)),
+                ),
+                child: const Text('Active',
+                    style:
+                        TextStyle(color: Colors.green, fontSize: 10)),
+              ),
+            ]),
+          ]),
+        );
+      },
     );
   }
 }

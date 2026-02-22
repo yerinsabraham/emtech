@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../models/user_model.dart';
 
@@ -240,6 +241,8 @@ class AuthService extends ChangeNotifier {
     String? name,
     String? session,
     String? photoUrl,
+    String? phone,
+    String? bio,
   }) async {
     if (_user == null || _userModel == null) return;
 
@@ -251,6 +254,8 @@ class AuthService extends ChangeNotifier {
       if (name != null) updates['name'] = name;
       if (session != null) updates['session'] = session;
       if (photoUrl != null) updates['photoUrl'] = photoUrl;
+      if (phone != null) updates['phone'] = phone;
+      if (bio != null) updates['bio'] = bio;
 
       await _firestore.collection('users').doc(_user!.uid).update(updates);
 
@@ -258,11 +263,14 @@ class AuthService extends ChangeNotifier {
         name: name ?? _userModel!.name,
         session: session ?? _userModel!.session,
         photoUrl: photoUrl ?? _userModel!.photoUrl,
+        phone: phone ?? _userModel!.phone,
+        bio: bio ?? _userModel!.bio,
         updatedAt: DateTime.now(),
       );
       notifyListeners();
     } catch (e) {
       debugPrint('Error updating profile: $e');
+      rethrow;
     }
   }
 
@@ -330,6 +338,7 @@ class AuthService extends ChangeNotifier {
   String get userRole => _userModel?.role ?? 'student';
 
   // Create lecturer account (Admin only)
+  // Uses a Firebase Cloud Function with Admin SDK to avoid signing out the current admin.
   Future<String?> createLecturerAccount({
     required String email,
     required String password,
@@ -341,36 +350,19 @@ class AuthService extends ChangeNotifier {
     }
 
     try {
-      // Use secondary Firebase Auth instance to avoid signing out current admin
-      final tempAuth = FirebaseAuth.instance;
-      final credential = await tempAuth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-
-      if (credential.user != null) {
-        final newLecturer = UserModel(
-          uid: credential.user!.uid,
-          email: email,
-          name: name,
-          role: 'lecturer',
-          emcBalance: 0,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        );
-
-        await _firestore
-            .collection('users')
-            .doc(credential.user!.uid)
-            .set(newLecturer.toMap());
-
-        // Sign out the temporary user
-        await tempAuth.signOut();
-      }
+      final callable =
+          FirebaseFunctions.instance.httpsCallable('createLecturerAccount');
+      await callable.call({
+        'email': email,
+        'password': password,
+        'name': name,
+      });
       return null;
-    } on FirebaseAuthException catch (e) {
+    } on FirebaseFunctionsException catch (e) {
+      debugPrint('Cloud function error: ${e.code} — ${e.message}');
       return e.message ?? 'An error occurred creating lecturer account';
     } catch (e) {
+      debugPrint('Create lecturer error: $e');
       return 'An unexpected error occurred';
     }
   }

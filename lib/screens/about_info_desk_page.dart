@@ -1,7 +1,37 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-class AboutInfoDeskPage extends StatelessWidget {
+class AboutInfoDeskPage extends StatefulWidget {
   const AboutInfoDeskPage({super.key});
+
+  @override
+  State<AboutInfoDeskPage> createState() => _AboutInfoDeskPageState();
+}
+
+class _AboutInfoDeskPageState extends State<AboutInfoDeskPage> {
+  Future<Map<String, int>>? _statsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _statsFuture = _fetchStats();
+  }
+
+  Future<Map<String, int>> _fetchStats() async {
+    final db = FirebaseFirestore.instance;
+    final results = await Future.wait([
+      db.collection('users').where('role', isEqualTo: 'student').count().get(),
+      db.collection('courses').count().get(),
+      db.collection('users').where('role', isEqualTo: 'lecturer').count().get(),
+      db.collection('certificates').where('status', isEqualTo: 'issued').count().get(),
+    ]);
+    return {
+      'students': results[0].count ?? 0,
+      'courses': results[1].count ?? 0,
+      'instructors': results[2].count ?? 0,
+      'certificates': results[3].count ?? 0,
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -130,44 +160,50 @@ class AboutInfoDeskPage extends StatelessWidget {
           const SizedBox(height: 32),
 
           // Stats
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: const Color(0xFF111C2F),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFF1E2D4A), width: 0.5),
-            ),
-            child: Column(
-              children: [
-                const Text(
-                  'Our Impact',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+          FutureBuilder<Map<String, int>>(
+            future: _statsFuture,
+            builder: (context, snapshot) {
+              final data = snapshot.data;
+              final students = data?['students'] ?? 0;
+              final courses = data?['courses'] ?? 0;
+              final instructors = data?['instructors'] ?? 0;
+              final certs = data?['certificates'] ?? 0;
+              return Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF111C2F),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFF1E2D4A), width: 0.5),
                 ),
-                const SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                child: Column(
                   children: [
-                    _buildStat('5,000+', 'Students'),
-                    Container(
-                      width: 1,
-                      height: 40,
-                      color: const Color(0xFF1E2D4A),
+                    const Text(
+                      'Our Impact',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                    _buildStat('150+', 'Courses'),
-                    Container(
-                      width: 1,
-                      height: 40,
-                      color: const Color(0xFF1E2D4A),
-                    ),
-                    _buildStat('50+', 'Instructors'),
+                    const SizedBox(height: 20),
+                    snapshot.connectionState == ConnectionState.waiting
+                        ? const CircularProgressIndicator()
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: [
+                              _buildStatCol('${_abbrev(students)}', 'Students'),
+                              Container(width: 1, height: 40, color: const Color(0xFF1E2D4A)),
+                              _buildStatCol('${_abbrev(courses)}', 'Courses'),
+                              Container(width: 1, height: 40, color: const Color(0xFF1E2D4A)),
+                              _buildStatCol('${_abbrev(instructors)}', 'Instructors'),
+                              Container(width: 1, height: 40, color: const Color(0xFF1E2D4A)),
+                              _buildStatCol('${_abbrev(certs)}', 'Certificates'),
+                            ],
+                          ),
                   ],
                 ),
-              ],
-            ),
+              );
+            },
           ),
 
           const SizedBox(height: 32),
@@ -313,6 +349,25 @@ class AboutInfoDeskPage extends StatelessWidget {
     );
   }
 
+  Widget _buildStatCol(String value, String label) {
+    return Column(
+      children: [
+        Text(value, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 4),
+        Text(label, style: const TextStyle(color: Colors.white60, fontSize: 12)),
+      ],
+    );
+  }
+
+  String _abbrev(int n) {
+    if (n == 0) return '0';
+    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M+';
+    if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}k+';
+    return '$n';
+  }
+
+  // Legacy stat builder kept for reference
+  // ignore: unused_element
   Widget _buildStat(String value, String label) {
     return Column(
       children: [

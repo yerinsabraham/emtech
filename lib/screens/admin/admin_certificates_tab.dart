@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import '../../models/certificate_model.dart';
 import '../../services/certificate_service.dart';
@@ -806,7 +807,7 @@ class _AdminCertificatesTabState extends State<AdminCertificatesTab> {
                 await _certificateService.revokeCertificate(
                   certificateId: certificate.id,
                   reason: reasonController.text.trim(),
-                  revokedById: 'admin', // TODO: Get actual admin ID
+                  revokedById: FirebaseAuth.instance.currentUser?.uid ?? '',
                 );
 
                 if (context.mounted) {

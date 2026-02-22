@@ -6,6 +6,9 @@ import '../../models/user_model.dart';
 import '../../services/diploma_courses_seeder.dart';
 import 'admin_certificates_tab.dart';
 import 'admin_scholarship_tab.dart';
+import 'mock_data_management_tab.dart';
+import 'admin_analytics_tab.dart';
+import 'admin_loans_tab.dart';
 
 class AdminPanelPage extends StatefulWidget {
   const AdminPanelPage({super.key});
@@ -21,7 +24,7 @@ class _AdminPanelPageState extends State<AdminPanelPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 8, vsync: this);
   }
 
   @override
@@ -51,22 +54,28 @@ class _AdminPanelPageState extends State<AdminPanelPage>
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white54,
           tabs: const [
+            Tab(text: 'Analytics'),
             Tab(text: 'Users'),
             Tab(text: 'Create Lecturer'),
             Tab(text: 'Courses'),
             Tab(text: 'Certificates'),
             Tab(text: 'Scholarships'),
+            Tab(text: 'Loans'),
+            Tab(text: 'Mock Data'),
           ],
         ),
       ),
       body: TabBarView(
         controller: _tabController,
         children: const [
+          AdminAnalyticsTab(),
           _UsersTab(),
           _CreateLecturerTab(),
           _CoursesTab(),
           AdminCertificatesTab(),
           AdminScholarshipTab(),
+          AdminLoansTab(),
+          MockDataManagementTab(),
         ],
       ),
     );

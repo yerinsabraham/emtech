@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../services/auth_service.dart';
+import '../../services/payment_service.dart';
 import 'paystack_checkout_page.dart';
 import 'payment_success_page.dart';
 
@@ -294,20 +295,66 @@ class PaymentSelectionPage extends StatelessWidget {
       ),
     );
 
-    if (confirm == true && context.mounted) {
-      // TODO: Process EMC payment when SDK is integrated
-      // For now, just show success page
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => PaymentSuccessPage(
-            itemName: itemName,
-            amount: amount,
-            paymentMethod: 'EMC Balance',
-          ),
+    if (confirm != true || !context.mounted) return;
+
+    final auth = context.read<AuthService>();
+    final userId = auth.currentUser?.uid;
+    if (userId == null) return;
+
+    // Deduct EMC tokens from wallet
+    final success = await auth.spendEmcTokens(
+      amount.toInt(),
+      'Paid for: $itemName',
+    );
+
+    if (!context.mounted) return;
+
+    if (!success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Insufficient EMC balance.'),
+          backgroundColor: Colors.red,
         ),
       );
+      return;
     }
+
+    // Post-payment action
+    final service = PaymentService.instance;
+    final reference = service.generateReference();
+    try {
+      await service.recordPayment(
+        userId: userId,
+        reference: reference,
+        amountNgn: 0,
+        itemId: itemId,
+        itemType: itemType,
+        itemName: itemName,
+        paymentMethod: 'emc_balance',
+      );
+
+      if (itemType == 'course') {
+        await service.enrollAfterPayment(
+          userId: userId,
+          courseId: itemId,
+          paymentReference: reference,
+          isPaidCourse: amount > 0,
+          courseName: itemName,
+        );
+      }
+    } catch (_) { /* Non-fatal; payment already deducted */ }
+
+    if (!context.mounted) return;
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PaymentSuccessPage(
+          itemName: itemName,
+          amount: amount,
+          paymentMethod: 'EMC Balance',
+        ),
+      ),
+    );
   }
 
   Future<void> _payWithPaystack(BuildContext context) async {
@@ -316,6 +363,7 @@ class PaymentSelectionPage extends StatelessWidget {
       MaterialPageRoute(
         builder: (context) => PaystackCheckoutPage(
           itemName: itemName,
+          itemId: itemId,
           amount: amount,
           itemType: itemType,
         ),

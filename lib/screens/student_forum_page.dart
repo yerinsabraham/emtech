@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import '../models/forum_post_model.dart';
-import '../services/mock_data_service.dart';
+import '../services/forum_service.dart';
+import '../services/auth_service.dart';
 
 class StudentForumPage extends StatefulWidget {
   const StudentForumPage({super.key});
@@ -13,6 +15,7 @@ class StudentForumPage extends StatefulWidget {
 class _StudentForumPageState extends State<StudentForumPage> {
   String _selectedCategory = 'all';
   final _searchController = TextEditingController();
+  final _forumService = ForumService();
 
   @override
   void dispose() {
@@ -22,21 +25,6 @@ class _StudentForumPageState extends State<StudentForumPage> {
 
   @override
   Widget build(BuildContext context) {
-    final posts = MockDataService.getMockForumPosts();
-    final filteredPosts = posts.where((post) {
-      if (_selectedCategory != 'all' && post.category != _selectedCategory) {
-        return false;
-      }
-      return true;
-    }).toList();
-
-    // Sort: pinned first, then by date
-    filteredPosts.sort((a, b) {
-      if (a.isPinned && !b.isPinned) return -1;
-      if (!a.isPinned && b.isPinned) return 1;
-      return b.createdAt.compareTo(a.createdAt);
-    });
-
     return Scaffold(
       backgroundColor: const Color(0xFF080C14),
       appBar: AppBar(
@@ -53,11 +41,7 @@ class _StudentForumPageState extends State<StudentForumPage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.add_circle_outline, color: Colors.white),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Create new post - Coming soon!')),
-              );
-            },
+            onPressed: () => _showCreatePostDialog(),
           ),
         ],
       ),
@@ -69,6 +53,7 @@ class _StudentForumPageState extends State<StudentForumPage> {
             child: TextField(
               controller: _searchController,
               style: const TextStyle(color: Colors.white),
+              onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
                 hintText: 'Search discussions...',
                 hintStyle: const TextStyle(color: Colors.white38),
@@ -101,20 +86,46 @@ class _StudentForumPageState extends State<StudentForumPage> {
 
           // Posts List
           Expanded(
-            child: filteredPosts.isEmpty
-                ? const Center(
+            child: StreamBuilder<List<ForumPostModel>>(
+              stream: _forumService.getPosts(category: _selectedCategory),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(
                     child: Text(
-                      'No posts yet',
+                      'Error: ${snapshot.error}',
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  );
+                }
+                final query = _searchController.text.toLowerCase();
+                var posts = (snapshot.data ?? []).where((p) {
+                  if (query.isEmpty) return true;
+                  return p.title.toLowerCase().contains(query) ||
+                      p.content.toLowerCase().contains(query) ||
+                      p.authorName.toLowerCase().contains(query);
+                }).toList();
+
+                if (posts.isEmpty) {
+                  return const Center(
+                    child: Text(
+                      'No posts yet.\nBe the first to start a discussion!',
+                      textAlign: TextAlign.center,
                       style: TextStyle(color: Colors.white54),
                     ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 18),
-                    itemCount: filteredPosts.length,
-                    itemBuilder: (context, index) {
-                      return _buildForumPostCard(filteredPosts[index]);
-                    },
-                  ),
+                  );
+                }
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 18),
+                  itemCount: posts.length,
+                  itemBuilder: (context, index) {
+                    return _buildForumPostCard(posts[index]);
+                  },
+                );
+              },
+            ),
           ),
         ],
       ),
@@ -361,7 +372,13 @@ class _StudentForumPageState extends State<StudentForumPage> {
     }
   }
 
-  void _showPostDetails(ForumPostModel post) {
+  void _showCreatePostDialog() {
+    final titleCtrl = TextEditingController();
+    final contentCtrl = TextEditingController();
+    final tagsCtrl = TextEditingController();
+    String selectedCat = 'discussion';
+    bool submitting = false;
+
     showModalBottomSheet(
       context: context,
       backgroundColor: const Color(0xFF111C2F),
@@ -369,108 +386,488 @@ class _StudentForumPageState extends State<StudentForumPage> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        expand: false,
-        builder: (context, scrollController) => ListView(
-          controller: scrollController,
-          padding: const EdgeInsets.all(24),
-          children: [
-            // Title
-            Text(
-              post.title,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Author Info
-            Row(
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => Padding(
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 24,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                CircleAvatar(
-                  radius: 20,
-                  backgroundColor: const Color(0xFF3B82F6),
-                  child: Text(
-                    post.authorName[0].toUpperCase(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
+                const Text(
+                  'New Post',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      post.authorName,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
+                const SizedBox(height: 20),
+
+                // Category picker
+                DropdownButtonFormField<String>(
+                  value: selectedCat,
+                  dropdownColor: const Color(0xFF0F1A2E),
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'Category',
+                    labelStyle: const TextStyle(color: Colors.white54),
+                    filled: true,
+                    fillColor: const Color(0xFF0F1A2E),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: Color(0xFF1E2D4A)),
                     ),
-                    Text(
-                      _formatTimeAgo(post.createdAt),
-                      style: const TextStyle(
-                        color: Colors.white38,
-                        fontSize: 12,
-                      ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: Color(0xFF1E2D4A)),
                     ),
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                        value: 'discussion', child: Text('Discussion')),
+                    DropdownMenuItem(
+                        value: 'question', child: Text('Question')),
+                    DropdownMenuItem(
+                        value: 'announcement', child: Text('Announcement')),
                   ],
+                  onChanged: (v) => setSheet(() => selectedCat = v!),
                 ),
-              ],
-            ),
-            const SizedBox(height: 24),
+                const SizedBox(height: 14),
 
-            // Content
-            Text(
-              post.content,
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 15,
-                height: 1.6,
-              ),
-            ),
-            const SizedBox(height: 24),
+                TextField(
+                  controller: titleCtrl,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: _inputDeco('Title'),
+                ),
+                const SizedBox(height: 14),
 
-            // Actions
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Reply feature coming soon!')),
-                      );
-                    },
-                    icon: const Icon(Icons.comment),
-                    label: const Text('Reply'),
+                TextField(
+                  controller: contentCtrl,
+                  style: const TextStyle(color: Colors.white),
+                  maxLines: 5,
+                  decoration: _inputDeco('Share your thoughts...'),
+                ),
+                const SizedBox(height: 14),
+
+                TextField(
+                  controller: tagsCtrl,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: _inputDeco('Tags (comma-separated, optional)'),
+                ),
+                const SizedBox(height: 20),
+
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF3B82F6),
                       padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                IconButton(
-                  onPressed: () {},
-                  icon: const Icon(Icons.thumb_up_outlined),
-                  color: Colors.white70,
-                  style: IconButton.styleFrom(
-                    backgroundColor: const Color(0xFF1E2D4A),
+                    onPressed: submitting
+                        ? null
+                        : () async {
+                            if (titleCtrl.text.trim().isEmpty ||
+                                contentCtrl.text.trim().isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content:
+                                        Text('Title and content are required')),
+                              );
+                              return;
+                            }
+                            setSheet(() => submitting = true);
+                            try {
+                              final user = context
+                                  .read<AuthService>()
+                                  .currentUser;
+                              final tags = tagsCtrl.text
+                                  .split(',')
+                                  .map((t) => t.trim())
+                                  .where((t) => t.isNotEmpty)
+                                  .toList();
+                              await _forumService.createPost(
+                                authorId: user?.uid ?? '',
+                                authorName:
+                                    user?.displayName ?? user?.email ?? 'Student',
+                                title: titleCtrl.text.trim(),
+                                content: contentCtrl.text.trim(),
+                                category: selectedCat,
+                                tags: tags,
+                              );
+                              if (ctx.mounted) Navigator.pop(ctx);
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                      content: Text('Post published!')),
+                                );
+                              }
+                            } catch (e) {
+                              setSheet(() => submitting = false);
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Error: $e')),
+                                );
+                              }
+                            }
+                          },
+                    child: submitting
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2),
+                          )
+                        : const Text('Publish Post',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],
             ),
-          ],
+          ),
         ),
       ),
     );
   }
-}
+
+  InputDecoration _inputDeco(String hint) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(color: Colors.white38),
+      filled: true,
+      fillColor: const Color(0xFF0F1A2E),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Color(0xFF1E2D4A)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Color(0xFF1E2D4A)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Color(0xFF3B82F6)),
+      ),
+    );
+  }
+
+  void _showPostDetails(ForumPostModel post) {
+    final replyCtrl = TextEditingController();
+    bool submittingReply = false;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF111C2F),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => DraggableScrollableSheet(
+          initialChildSize: 0.85,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          expand: false,
+          builder: (ctx2, scrollController) => Column(
+            children: [
+              // Handle
+              Container(
+                margin: const EdgeInsets.only(top: 12, bottom: 8),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Expanded(
+                child: ListView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
+                  children: [
+                    // Title
+                    Text(
+                      post.title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Author Info
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 20,
+                          backgroundColor: const Color(0xFF3B82F6),
+                          child: Text(
+                            post.authorName[0].toUpperCase(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              post.authorName,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Text(
+                              _formatTimeAgo(post.createdAt),
+                              style: const TextStyle(
+                                color: Colors.white38,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const Spacer(),
+                        _buildCategoryBadge(post.category),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Content
+                    Text(
+                      post.content,
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 15,
+                        height: 1.6,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Like action
+                    Row(
+                      children: [
+                        _buildStat(Icons.thumb_up_outlined, post.likes.toString()),
+                        const SizedBox(width: 16),
+                        _buildStat(
+                            Icons.comment_outlined, post.replies.toString()),
+                        const Spacer(),
+                        TextButton.icon(
+                          onPressed: () async {
+                            final uid = context
+                                    .read<AuthService>()
+                                    .currentUser
+                                    ?.uid ??
+                                '';
+                            await _forumService.toggleLike(
+                                postId: post.id, userId: uid);
+                          },
+                          icon: const Icon(Icons.thumb_up_alt_outlined,
+                              size: 16),
+                          label: const Text('Like'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: const Color(0xFF60A5FA),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const Divider(color: Color(0xFF1E2D4A)),
+                    const SizedBox(height: 8),
+
+                    // Replies header
+                    const Text(
+                      'Replies',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Replies stream
+                    StreamBuilder<List<Map<String, dynamic>>>(
+                      stream: _forumService.getReplies(post.id),
+                      builder: (context, snap) {
+                        if (snap.connectionState == ConnectionState.waiting) {
+                          return const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 16),
+                            child: Center(
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2)),
+                          );
+                        }
+                        final replies = snap.data ?? [];
+                        if (replies.isEmpty) {
+                          return const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 12),
+                            child: Text(
+                              'No replies yet. Be the first!',
+                              style: TextStyle(color: Colors.white38),
+                            ),
+                          );
+                        }
+                        return Column(
+                          children: replies.map((r) {
+                            final createdAt = r['createdAt'] != null
+                                ? DateTime.tryParse(r['createdAt'].toString()) ??
+                                    DateTime.now()
+                                : DateTime.now();
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF0F1A2E),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                    color: const Color(0xFF1E2D4A),
+                                    width: 0.5),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      CircleAvatar(
+                                        radius: 14,
+                                        backgroundColor:
+                                            const Color(0xFF8B5CF6),
+                                        child: Text(
+                                          (r['authorName'] ?? 'U')[0]
+                                              .toUpperCase(),
+                                          style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 11),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        r['authorName'] ?? 'User',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                      const Spacer(),
+                                      Text(
+                                        _formatTimeAgo(createdAt),
+                                        style: const TextStyle(
+                                          color: Colors.white38,
+                                          fontSize: 11,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    r['content'] ?? '',
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+
+              // Reply input
+              Container(
+                padding: EdgeInsets.fromLTRB(
+                    16, 12, 16, MediaQuery.of(ctx).viewInsets.bottom + 12),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF0B1120),
+                  border: Border(
+                    top: BorderSide(color: Color(0xFF1E2D4A)),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: replyCtrl,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          hintText: 'Write a reply...',
+                          hintStyle: const TextStyle(color: Colors.white38),
+                          filled: true,
+                          fillColor: const Color(0xFF111C2F),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 10),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    GestureDetector(
+                      onTap: submittingReply
+                          ? null
+                          : () async {
+                              final text = replyCtrl.text.trim();
+                              if (text.isEmpty) return;
+                              setSheet(() => submittingReply = true);
+                              try {
+                                final user = context
+                                    .read<AuthService>()
+                                    .currentUser;
+                                await _forumService.addReply(
+                                  postId: post.id,
+                                  authorId: user?.uid ?? '',
+                                  authorName: user?.displayName ??
+                                      user?.email ??
+                                      'Student',
+                                  content: text,
+                                );
+                                replyCtrl.clear();
+                              } finally {
+                                setSheet(() => submittingReply = false);
+                              }
+                            },
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF3B82F6),
+                          shape: BoxShape.circle,
+                        ),
+                        child: submittingReply
+                            ? const SizedBox(
+                                height: 18,
+                                width: 18,
+                                child: CircularProgressIndicator(
+                                    color: Colors.white, strokeWidth: 2),
+                              )
+                            : const Icon(Icons.send,
+                                color: Colors.white, size: 18),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }}

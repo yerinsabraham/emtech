@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/grade_model.dart';
 import '../models/submission_model.dart';
 import 'notification_service.dart';
 import 'certificate_service.dart';
+import 'achievement_service.dart';
 
 class GradingService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -69,6 +71,9 @@ class GradingService {
         print('Failed to auto-issue certificate: $e');
         // Don't fail the grade assignment if certificate issuance fails
       }
+
+      // Trigger achievement check for assignment graded
+      unawaited(AchievementService().onAssignmentGraded(studentId, numericScore));
 
       return docRef.id;
     } catch (e) {

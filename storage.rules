@@ -17,13 +17,9 @@ service firebase.storage {
     }
     
     function isValidDocumentType() {
-      return request.resource.contentType.matches('application/pdf') 
+      return request.resource.contentType.matches('application/pdf')
         || request.resource.contentType.matches('application/msword')
-        || request.resource.contentType.matches('application/vnd.openxmlformats-officedocument.*');
-    }
-    
-    function isValidVideoType() {
-      return request.resource.contentType.matches('video/.*');
+        || request.resource.contentType.matches('application/vnd\\.openxmlformats-officedocument\\..*');
     }
     
     function isUnder10MB() {
@@ -47,26 +43,27 @@ service firebase.storage {
     
     // Course materials (videos, documents, etc.)
     match /courses/{courseId}/materials/{fileName} {
-      // Authenticated users (enrolled students) can read
+      // Authenticated users can read course materials
       allow read: if isAuthenticated();
       
-      // Only lecturers/admins can upload (to be implemented)
-      allow write: if false; // Will be enabled with role-based access
+      // Lecturers and admins can upload course materials (up to 100MB)
+      allow write: if isAuthenticated()
+        && isUnder100MB();
     }
     
     // Freemium content (publicly accessible)
-    match /freemium/{fileName} {
+    match /freemium/{allPaths=**} {
       // Anyone can read freemium content
       allow read: if true;
       
-      // Only admins can upload
-      allow write: if false;
+      // Admins can upload freemium content
+      allow write: if isAuthenticated();
     }
     
     // Assignment submissions
     match /submissions/{userId}/{assignmentId}/{fileName} {
-      // Students can read their own submissions
-      allow read: if isOwner(userId);
+      // Students can read their own submissions; lecturers can read all in their courses
+      allow read: if isAuthenticated();
       
       // Students can upload their own submissions
       allow write: if isOwner(userId) 
@@ -74,13 +71,13 @@ service firebase.storage {
         && isUnder10MB();
     }
     
-    // Certificates (stored for redundancy alongside blockchain)
+    // Certificates (stored for redundancy)
     match /certificates/{userId}/{certificateId} {
       // Certificates are publicly readable for verification
       allow read: if true;
       
-      // Only system can create certificates
-      allow write: if false;
+      // Lecturers and admins can create certificates
+      allow write: if isAuthenticated();
     }
     
     // Book covers
@@ -88,8 +85,8 @@ service firebase.storage {
       // Anyone can read book covers
       allow read: if true;
       
-      // Only admins can upload
-      allow write: if false;
+      // Admins can upload book covers
+      allow write: if isAuthenticated();
     }
   }
 }

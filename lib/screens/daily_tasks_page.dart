@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/daily_task_model.dart';
-import '../services/mock_data_service.dart';
+import '../services/daily_task_service.dart';
+import '../services/auth_service.dart';
 
 class DailyTasksPage extends StatefulWidget {
   const DailyTasksPage({super.key});
@@ -10,47 +12,67 @@ class DailyTasksPage extends StatefulWidget {
 }
 
 class _DailyTasksPageState extends State<DailyTasksPage> {
-  List<DailyTaskModel> _tasks = [];
-  int _totalEarnedToday = 0;
+  final DailyTaskService _taskService = DailyTaskService();
+  bool _completingTaskId = false;
+  String? _completingId;
 
   @override
   void initState() {
     super.initState();
-    _loadTasks();
+    // Seed default tasks once if none exist
+    _taskService.seedDefaultTasks();
   }
 
-  void _loadTasks() {
+  Future<void> _completeTask(DailyTaskModel task) async {
+    if (_completingTaskId) return;
+    final auth = context.read<AuthService>();
+    final user = auth.currentUser;
+    if (user == null) return;
+
     setState(() {
-      _tasks = MockDataService.getMockDailyTasks();
-      _totalEarnedToday = _tasks
-          .where((task) => task.isCompleted)
-          .fold(0, (sum, task) => sum + task.rewardEmc);
+      _completingTaskId = true;
+      _completingId = task.id;
     });
-  }
 
-  void _completeTask(DailyTaskModel task) {
-    setState(() {
-      final index = _tasks.indexWhere((t) => t.id == task.id);
-      if (index != -1) {
-        _tasks[index] = task.copyWith(isCompleted: true);
-        _totalEarnedToday += task.rewardEmc;
+    try {
+      await _taskService.completeTask(
+        userId: user.uid,
+        userEmail: user.email ?? '',
+        task: task,
+        authService: auth,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Earned ${task.rewardEmc} EMC!'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
       }
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('🎉 Earned ${task.rewardEmc} EMC!'),
-        backgroundColor: Colors.green,
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _completingTaskId = false;
+          _completingId = null;
+        });
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final incompleteTasks = _tasks.where((t) => !t.isCompleted).toList();
-    final completedTasks = _tasks.where((t) => t.isCompleted).toList();
-    final possibleEarnings = _tasks.fold(0, (sum, task) => sum + task.rewardEmc);
+    final auth = context.watch<AuthService>();
+    final userId = auth.currentUser?.uid;
 
     return Scaffold(
       backgroundColor: const Color(0xFF080C14),
@@ -66,151 +88,198 @@ class _DailyTasksPageState extends State<DailyTasksPage> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: Column(
-        children: [
-          // Stats Header
-          Container(
-            margin: const EdgeInsets.all(18),
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF1E3A8A), Color(0xFF3B82F6)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Today\'s Progress',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 14,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        '$_totalEarnedToday / $possibleEarnings EMC',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${completedTasks.length}/${_tasks.length} tasks completed',
-                        style: const TextStyle(
-                          color: Colors.white60,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.emoji_events,
-                    color: Colors.amber,
-                    size: 32,
-                  ),
-                ),
-              ],
-            ),
-          ),
+      body: userId == null
+          ? const Center(
+              child: Text('Please log in to view tasks',
+                  style: TextStyle(color: Colors.white54)))
+          : StreamBuilder<List<DailyTaskModel>>(
+              stream: _taskService.getActiveTasks(),
+              builder: (context, tasksSnap) {
+                if (tasksSnap.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final allTasks = tasksSnap.data ?? [];
 
-          // Progress Bar
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 18),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Completion',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 13,
-                      ),
-                    ),
-                    Text(
-                      '${(_tasks.isEmpty ? 0 : (completedTasks.length / _tasks.length * 100)).toStringAsFixed(0)}%',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: LinearProgressIndicator(
-                    value: _tasks.isEmpty ? 0 : completedTasks.length / _tasks.length,
-                    backgroundColor: const Color(0xFF1E2D4A),
-                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF3B82F6)),
-                    minHeight: 8,
-                  ),
-                ),
-              ],
-            ),
-          ),
+                return StreamBuilder<Set<String>>(
+                  stream: _taskService.watchCompletedTaskIds(userId),
+                  builder: (context, completedSnap) {
+                    final completedIds = completedSnap.data ?? {};
+                    final incompleteTasks = allTasks
+                        .where((t) => !completedIds.contains(t.id))
+                        .toList();
+                    final completedTasks = allTasks
+                        .where((t) => completedIds.contains(t.id))
+                        .toList();
 
-          const SizedBox(height: 24),
+                    final earnedToday = completedTasks.fold(
+                        0, (sum, t) => sum + t.rewardEmc);
+                    final possibleEarnings =
+                        allTasks.fold(0, (sum, t) => sum + t.rewardEmc);
 
-          // Tasks List
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 18),
-              children: [
-                if (incompleteTasks.isNotEmpty) ...[
-                  const Text(
-                    'Available Tasks',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  ...incompleteTasks.map((task) => _buildTaskCard(task)),
-                ],
-                if (completedTasks.isNotEmpty) ...[
-                  const SizedBox(height: 24),
-                  const Text(
-                    'Completed',
-                    style: TextStyle(
-                      color: Colors.white60,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  ...completedTasks.map((task) => _buildTaskCard(task)),
-                ],
-              ],
+                    return Column(
+                      children: [
+                        // Stats Header
+                        Container(
+                          margin: const EdgeInsets.all(18),
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF1E3A8A), Color(0xFF3B82F6)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Today\'s Progress',
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      '$earnedToday / $possibleEarnings EMC',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '${completedTasks.length}/${allTasks.length} tasks completed',
+                                      style: const TextStyle(
+                                        color: Colors.white60,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.2),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.emoji_events,
+                                  color: Colors.amber,
+                                  size: 32,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // Progress Bar
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 18),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text(
+                                    'Completion',
+                                    style: TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                  Text(
+                                    '${(allTasks.isEmpty ? 0 : (completedTasks.length / allTasks.length * 100)).toStringAsFixed(0)}%',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: LinearProgressIndicator(
+                                  value: allTasks.isEmpty
+                                      ? 0
+                                      : completedTasks.length / allTasks.length,
+                                  backgroundColor: const Color(0xFF1E2D4A),
+                                  valueColor:
+                                      const AlwaysStoppedAnimation<Color>(
+                                          Color(0xFF3B82F6)),
+                                  minHeight: 8,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        // Tasks List
+                        Expanded(
+                          child: allTasks.isEmpty
+                              ? const Center(
+                                  child: Text(
+                                    'No tasks available today',
+                                    style: TextStyle(color: Colors.white54),
+                                  ),
+                                )
+                              : ListView(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 18),
+                                  children: [
+                                    if (incompleteTasks.isNotEmpty) ...[
+                                      const Text(
+                                        'Available Tasks',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      ...incompleteTasks.map((task) =>
+                                          _buildTaskCard(task, false)),
+                                    ],
+                                    if (completedTasks.isNotEmpty) ...[
+                                      const SizedBox(height: 24),
+                                      const Text(
+                                        'Completed',
+                                        style: TextStyle(
+                                          color: Colors.white60,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      ...completedTasks.map((task) =>
+                                          _buildTaskCard(task, true)),
+                                    ],
+                                  ],
+                                ),
+                        ),
+                      ],
+                    );
+                  },
+                );
+              },
             ),
-          ),
-        ],
-      ),
     );
   }
 
-  Widget _buildTaskCard(DailyTaskModel task) {
-    final isCompleted = task.isCompleted;
+  Widget _buildTaskCard(DailyTaskModel task, bool isCompleted) {
+    final isLoading = _completingTaskId && _completingId == task.id;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -229,7 +298,7 @@ class _DailyTasksPageState extends State<DailyTasksPage> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: isCompleted ? null : () => _completeTask(task),
+          onTap: isCompleted || isLoading ? null : () => _completeTask(task),
           borderRadius: BorderRadius.circular(14),
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -245,10 +314,19 @@ class _DailyTasksPageState extends State<DailyTasksPage> {
                         : _getCategoryColor(task.category).withOpacity(0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(
-                    isCompleted ? Icons.check_circle : _getTaskIcon(task.iconName),
-                    color: isCompleted ? Colors.green : _getCategoryColor(task.category),
-                  ),
+                  child: isLoading
+                      ? SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: _getCategoryColor(task.category),
+                          ),
+                        )
+                      : Icon(
+                          isCompleted ? Icons.check_circle : _getTaskIcon(task.iconName),
+                          color: isCompleted ? Colors.green : _getCategoryColor(task.category),
+                        ),
                 ),
                 const SizedBox(width: 16),
 

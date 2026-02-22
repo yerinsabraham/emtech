@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/exam_model.dart';
 import '../models/submission_model.dart';
 import 'notification_service.dart';
+import 'achievement_service.dart';
 
 class ExamService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -257,6 +259,10 @@ class ExamService {
         type: 'grading',
         actionUrl: '/submission/${docRef.id}',
       );
+
+      // Trigger achievement check for exam completion
+      final scorePercent = exam.totalPoints > 0 ? (score / exam.totalPoints) * 100 : 0.0;
+      unawaited(AchievementService().onExamCompleted(studentId, scorePercent));
 
       return docRef.id;
     } catch (e) {

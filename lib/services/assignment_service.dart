@@ -1,9 +1,11 @@
+import 'dart:async';
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'dart:io';
 import '../models/assignment_model.dart';
 import '../models/submission_model.dart';
 import 'notification_service.dart';
+import 'achievement_service.dart';
 
 class AssignmentService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -150,13 +152,14 @@ class AssignmentService {
         );
       }
 
+      // Trigger achievement check for assignment submission
+      unawaited(AchievementService().onAssignmentSubmitted(studentId));
+
       return docRef.id;
     } catch (e) {
       throw Exception('Failed to submit assignment: $e');
     }
   }
-
-  // Get submissions for an assignment
   Stream<List<SubmissionModel>> getSubmissionsByAssignment(String assignmentId) {
     return _firestore
         .collection('submissions')

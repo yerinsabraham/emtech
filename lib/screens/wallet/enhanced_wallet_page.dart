@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/staking_model.dart';
 import '../../models/user_model.dart';
-import '../../models/transaction_model.dart';
 import '../../services/staking_service.dart';
 import '../../services/reward_service.dart';
 import '../../config/mock_data_config.dart';
 import '../../services/mock_data_service.dart';
+import '../payment/payment_selection_page.dart';
 
 class EnhancedWalletPage extends StatefulWidget {
   final UserModel userModel;
@@ -194,6 +193,11 @@ class _EnhancedWalletPageState extends State<EnhancedWalletPage> with SingleTick
                 () => _showStakeDialog(),
               ),
               _buildActionButton(
+                'Buy EMC',
+                Icons.add_shopping_cart,
+                () => _showBuyEmcSheet(context),
+              ),
+              _buildActionButton(
                 'Redeem',
                 Icons.redeem,
                 () => _redeemUnredeemedRewards(),
@@ -254,6 +258,128 @@ class _EnhancedWalletPageState extends State<EnhancedWalletPage> with SingleTick
               label,
               style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Buy EMC ────────────────────────────────────────────────────────────────
+
+  void _showBuyEmcSheet(BuildContext context) {
+    /// EMC packages: {label, emcAmount, priceNgn}
+    const packages = [
+      {'label': 'Starter', 'emc': 500, 'ngn': 500},
+      {'label': 'Standard', 'emc': 1000, 'ngn': 1000},
+      {'label': 'Pro', 'emc': 5000, 'ngn': 5000},
+      {'label': 'Elite', 'emc': 10000, 'ngn': 10000},
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF111C2F),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Buy EMC Tokens',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              '1 NGN = 1 EMC  •  Powered by Paystack',
+              style: TextStyle(color: Colors.white54, fontSize: 13),
+            ),
+            const SizedBox(height: 20),
+            ...packages.map(
+              (pkg) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _buildEmcPackageTile(
+                  context,
+                  label: pkg['label'] as String,
+                  emcAmount: pkg['emc'] as int,
+                  priceNgn: pkg['ngn'] as int,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmcPackageTile(
+    BuildContext context, {
+    required String label,
+    required int emcAmount,
+    required int priceNgn,
+  }) {
+    return InkWell(
+      onTap: () {
+        Navigator.pop(context); // close sheet
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PaymentSelectionPage(
+              itemType: 'wallet',
+              itemId: 'wallet_topup_${emcAmount}emc',
+              itemName: '$emcAmount EMC Top-up',
+              amount: emcAmount.toDouble(),
+            ),
+          ),
+        );
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A2744),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFF2A3F5F)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: const Color(0xFF00C2FF).withOpacity(0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.token, color: Color(0xFF00C2FF), size: 22),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '$emcAmount EMC  •  $label',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '₦$priceNgn',
+                    style: const TextStyle(color: Colors.white54, fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: Colors.white38),
           ],
         ),
       ),
@@ -818,14 +944,49 @@ class _EnhancedWalletPageState extends State<EnhancedWalletPage> with SingleTick
 
   Future<void> _redeemUnredeemedRewards() async {
     try {
-      // This would call GradingService.redeemEMCRewards()
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Redeeming rewards...')),
-      );
+      final db = FirebaseFirestore.instance;
+      final snap = await db
+          .collection('rewards')
+          .where('userId', isEqualTo: widget.userModel.uid)
+          .where('redeemed', isEqualTo: false)
+          .where('type', isEqualTo: 'enrollment')
+          .get();
+
+      if (snap.docs.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No pending rewards to redeem')),
+          );
+        }
+        return;
+      }
+
+      final courseIds = snap.docs
+          .map((d) => (d.data()['courseId'] as String?) ?? '')
+          .where((id) => id.isNotEmpty)
+          .toSet();
+
+      for (final courseId in courseIds) {
+        await _rewardService.redeemCourseCompletionRewards(
+          userId: widget.userModel.uid,
+          courseId: courseId,
+        );
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Rewards redeemed! EMC added to your balance.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 }

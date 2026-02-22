@@ -1,15 +1,38 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/notification_model.dart';
 
 class NotificationService extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  
+
   List<NotificationModel> _notifications = [];
   int _unreadCount = 0;
+  StreamSubscription<List<NotificationModel>>? _subscription;
+  String? _listeningUserId;
 
   List<NotificationModel> get notifications => _notifications;
   int get unreadCount => _unreadCount;
+
+  /// Starts a real Firestore subscription for [uid].
+  /// Safe to call repeatedly — re-uses the existing subscription if the uid
+  /// hasn't changed.
+  void startListening(String uid) {
+    if (_listeningUserId == uid && _subscription != null) return;
+    stopListening();
+    _listeningUserId = uid;
+    _subscription = getNotificationsStream(uid).listen((_) {});
+  }
+
+  /// Cancels the active Firestore subscription and resets state.
+  void stopListening() {
+    _subscription?.cancel();
+    _subscription = null;
+    _listeningUserId = null;
+    _notifications = [];
+    _unreadCount = 0;
+    notifyListeners();
+  }
 
   // Stream of notifications for current user
   Stream<List<NotificationModel>> getNotificationsStream(String userId) {

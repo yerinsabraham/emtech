@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../services/mock_data_service.dart';
 
 class ScholarshipBoardPage extends StatefulWidget {

@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/staking_model.dart';
 import 'notification_service.dart';
+import 'achievement_service.dart';
 
 class StakingService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -59,13 +61,14 @@ class StakingService {
         actionUrl: '/wallet/staking/${docRef.id}',
       );
 
+      // Trigger achievement check for first stake
+      unawaited(AchievementService().onStake(userId));
+
       return docRef.id;
     } catch (e) {
       throw Exception('Failed to stake EMC: $e');
     }
   }
-
-  /// Unstake EMC tokens
   Future<void> unstakeEMC({
     required String stakingId,
     required String userId,

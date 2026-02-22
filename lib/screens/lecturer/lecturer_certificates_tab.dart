@@ -3,7 +3,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import '../../models/certificate_model.dart';
-import '../../services/certificate_service.dart';
 
 class LecturerCertificatesTab extends StatefulWidget {
   const LecturerCertificatesTab({super.key});
@@ -13,7 +12,6 @@ class LecturerCertificatesTab extends StatefulWidget {
 }
 
 class _LecturerCertificatesTabState extends State<LecturerCertificatesTab> {
-  final CertificateService _certificateService = CertificateService();
   String _selectedCourseFilter = 'all';
   String _selectedStatusFilter = 'all';
   

@@ -1,15 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../services/payment_service.dart';
+import '../../services/auth_service.dart';
 import 'payment_success_page.dart';
 import 'payment_failure_page.dart';
 
+/// Real Paystack checkout page using the flutter_paystack SDK.
 class PaystackCheckoutPage extends StatefulWidget {
   final String itemName;
-  final double amount;
-  final String itemType;
+  final String itemId;
+  final double amount; // In EMC
+  final String itemType; // 'course' | 'wallet'
 
   const PaystackCheckoutPage({
     super.key,
     required this.itemName,
+    required this.itemId,
     required this.amount,
     required this.itemType,
   });
@@ -20,28 +26,26 @@ class PaystackCheckoutPage extends StatefulWidget {
 
 class _PaystackCheckoutPageState extends State<PaystackCheckoutPage> {
   bool _isProcessing = false;
+  String _statusMessage = 'Preparing secure checkout…';
+
+  // 1 EMC = 1 NGN (adjust here if the business rate changes)
+  static const double _emcToNgn = 1.0;
+  double get _amountNgn => widget.amount * _emcToNgn;
 
   @override
   Widget build(BuildContext context) {
-    // Convert EMC to Naira (example rate: 1 EMC = 1000 NGN)
-    final amountInNaira = widget.amount * 1000;
-
     return Scaffold(
       backgroundColor: const Color(0xFF080C14),
       appBar: AppBar(
         backgroundColor: const Color(0xFF0B1120),
         elevation: 0,
-        title: const Text(
-          'Paystack Checkout',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-          ),
-        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+          onPressed: _isProcessing ? null : () => Navigator.pop(context),
+        ),
+        title: const Text(
+          'Paystack Checkout',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white),
         ),
       ),
       body: SingleChildScrollView(
@@ -49,275 +53,271 @@ class _PaystackCheckoutPageState extends State<PaystackCheckoutPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Payment Amount Card
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFF1A2744), Color(0xFF0F1B30)],
-                ),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                children: [
-                  const Text(
-                    'Amount to Pay',
-                    style: TextStyle(
-                      color: Colors.white54,
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '₦${amountInNaira.toStringAsFixed(2)}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 36,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '(${widget.amount.toStringAsFixed(0)} EMC)',
-                    style: const TextStyle(
-                      color: Colors.white54,
-                      fontSize: 13,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      widget.itemName,
-                      style: const TextStyle(
-                        color: Colors.blue,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 32),
-
-            // Paystack SDK Placeholder
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: const Color(0xFF111C2F),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFF1A2940), width: 1),
-              ),
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.payment,
-                    size: 64,
-                    color: Colors.blue.withValues(alpha: 0.3),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Paystack SDK Placeholder',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'The Paystack payment widget will appear here once the SDK is integrated.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white54,
-                      fontSize: 14,
-                      height: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  
-                  // Payment Methods Preview
-                  const Divider(color: Color(0xFF1A2940)),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Available Payment Methods:',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    alignment: WrapAlignment.center,
-                    children: [
-                      _buildPaymentMethodChip('💳 Card', Colors.blue),
-                      _buildPaymentMethodChip('🏦 Bank Transfer', Colors.green),
-                      _buildPaymentMethodChip('📱 USSD', Colors.orange),
-                      _buildPaymentMethodChip('📲 Mobile Money', Colors.purple),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 32),
-
-            // Test Payment Buttons
-            const Text(
-              'Test Payment Flow:',
-              style: TextStyle(
-                color: Colors.white54,
-                fontSize: 13,
-              ),
-            ),
-            const SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: _isProcessing ? null : () => _testPayment(true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: _isProcessing
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Text(
-                      'Simulate Successful Payment',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton(
-              onPressed: _isProcessing ? null : () => _testPayment(false),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.red,
-                side: const BorderSide(color: Colors.red),
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: const Text(
-                'Simulate Failed Payment',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
+            _buildAmountCard(),
             const SizedBox(height: 24),
-            
-            // Secure Payment Notice
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.blue.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: Colors.blue.withValues(alpha: 0.3),
-                  width: 1,
-                ),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.security,
-                    color: Colors.blue,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Payments are secured by Paystack. Your card details are never stored on our servers.',
-                      style: TextStyle(
-                        color: Colors.blue.shade200,
-                        fontSize: 12,
-                        height: 1.4,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            _buildMethodsCard(),
+            const SizedBox(height: 32),
+            _buildPayButton(context),
+            const SizedBox(height: 20),
+            _buildSecurityNote(),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildPaymentMethodChip(String label, Color color) {
+  // ── Amount card ────────────────────────────────────────────────────────────
+
+  Widget _buildAmountCard() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: color,
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF1A2744), Color(0xFF0F1B30)],
         ),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        children: [
+          const Text('Amount to Pay', style: TextStyle(color: Colors.white54, fontSize: 14)),
+          const SizedBox(height: 8),
+          Text(
+            '₦${_amountNgn.toStringAsFixed(2)}',
+            style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '(${widget.amount.toStringAsFixed(0)} EMC)',
+            style: const TextStyle(color: Colors.white54, fontSize: 13),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.blue.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              widget.itemName,
+              style: const TextStyle(color: Colors.blue, fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Future<void> _testPayment(bool success) async {
-    setState(() => _isProcessing = true);
+  // ── Methods card ───────────────────────────────────────────────────────────
 
-    // Simulate payment processing
-    await Future.delayed(const Duration(seconds: 2));
-
-    if (!mounted) return;
-
-    setState(() => _isProcessing = false);
-
-    if (success) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => PaymentSuccessPage(
-            itemName: widget.itemName,
-            amount: widget.amount,
-            paymentMethod: 'Paystack',
+  Widget _buildMethodsCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF111C2F),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF1A2940)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Accepted Payment Methods',
+            style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600),
           ),
-        ),
-      );
-    } else {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => PaymentFailurePage(
-            itemName: widget.itemName,
-            amount: widget.amount,
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _chip('💳 Card', Colors.blue),
+              _chip('🏦 Bank Transfer', Colors.green),
+              _chip('📱 USSD', Colors.orange),
+              _chip('📲 Mobile Money', Colors.purple),
+            ],
           ),
+          if (_isProcessing) ...[
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                const SizedBox(width: 12),
+                Text(_statusMessage, style: const TextStyle(color: Colors.white70, fontSize: 13)),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _chip(String label, Color color) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color.withOpacity(0.4)),
         ),
+        child: Text(label, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600)),
       );
+
+  // ── Pay button ─────────────────────────────────────────────────────────────
+
+  Widget _buildPayButton(BuildContext context) {
+    return ElevatedButton(
+      onPressed: _isProcessing ? null : () => _startPayment(context),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF00C2FF),
+        disabledBackgroundColor: const Color(0xFF1A2744),
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      child: _isProcessing
+          ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+            )
+          : Text(
+              'Pay ₦${_amountNgn.toStringAsFixed(2)} with Paystack',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white),
+            ),
+    );
+  }
+
+  // ── Security note ──────────────────────────────────────────────────────────
+
+  Widget _buildSecurityNote() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.blue.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue.withOpacity(0.25)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.security, color: Colors.blue, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Payments are secured by Paystack. '
+              'Your card details are never stored on our servers.',
+              style: TextStyle(color: Colors.blue.shade200, fontSize: 12, height: 1.4),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Payment logic ──────────────────────────────────────────────────────────
+
+  Future<void> _startPayment(BuildContext context) async {
+    final auth = context.read<AuthService>();
+    final userId = auth.currentUser?.uid;
+    final email = auth.currentUser?.email ?? auth.userModel?.email ?? '';
+
+    if (userId == null || email.isEmpty) {
+      _showError('You must be signed in to make a payment.');
+      return;
     }
+
+    setState(() {
+      _isProcessing = true;
+      _statusMessage = 'Connecting to Paystack…';
+    });
+
+    try {
+      final service = PaymentService.instance;
+      final reference = service.generateReference();
+
+      setState(() => _statusMessage = 'Waiting for payment…');
+
+      final response = await service.checkout(
+        context: context,
+        email: email,
+        amountNgn: _amountNgn,
+        reference: reference,
+      );
+
+      if (!mounted) return;
+
+      if (response.success) {
+        setState(() => _statusMessage = 'Finalising…');
+
+        // Record to Firestore
+        await service.recordPayment(
+          userId: userId,
+          reference: response.reference,
+          amountNgn: _amountNgn,
+          itemId: widget.itemId,
+          itemType: widget.itemType,
+          itemName: widget.itemName,
+          paymentMethod: 'paystack',
+        );
+
+        // Post-payment action
+        if (widget.itemType == 'course') {
+          await service.enrollAfterPayment(
+            userId: userId,
+            courseId: widget.itemId,
+            paymentReference: response.reference,
+            isPaidCourse: widget.amount > 0,
+            courseName: widget.itemName,
+          );
+        } else if (widget.itemType == 'wallet') {
+          await service.topUpWalletAfterPayment(
+            userId: userId,
+            emcAmount: _amountNgn.toInt(),
+            paymentReference: response.reference,
+          );
+          await auth.reloadUserData();
+        }
+
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PaymentSuccessPage(
+              itemName: widget.itemName,
+              amount: widget.amount,
+              paymentMethod: 'Paystack',
+            ),
+          ),
+        );
+      } else {
+        // Cancelled or declined
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PaymentFailurePage(
+              itemName: widget.itemName,
+              amount: widget.amount,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('[PaystackCheckout] Payment error: $e');
+      if (!mounted) return;
+      setState(() {
+        _isProcessing = false;
+        _statusMessage = 'An error occurred.';
+      });
+      _showError('Payment failed: $e\n\nPlease check your internet connection and try again.');
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red.shade700),
+    );
   }
 }

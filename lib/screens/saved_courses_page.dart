@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/course_model.dart';
-import 'dart:convert';
+import 'student/course_detail_page.dart';
 
 class SavedCoursesPage extends StatefulWidget {
   const SavedCoursesPage({super.key});
@@ -12,6 +13,7 @@ class SavedCoursesPage extends StatefulWidget {
 
 class _SavedCoursesPageState extends State<SavedCoursesPage> {
   List<String> _savedCourseIds = [];
+  Map<String, CourseModel> _courseData = {};
   bool _isLoading = true;
 
   @override
@@ -23,10 +25,36 @@ class _SavedCoursesPageState extends State<SavedCoursesPage> {
   Future<void> _loadSavedCourses() async {
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getStringList('saved_courses') ?? [];
-    setState(() {
-      _savedCourseIds = saved;
-      _isLoading = false;
-    });
+    setState(() => _savedCourseIds = saved);
+
+    // Fetch actual course data for all saved IDs
+    if (saved.isNotEmpty) {
+      await _fetchCourseData(saved);
+    }
+
+    if (mounted) setState(() => _isLoading = false);
+  }
+
+  Future<void> _fetchCourseData(List<String> ids) async {
+    try {
+      final Map<String, CourseModel> fetched = {};
+      // Firestore whereIn supports up to 30 items per query
+      const chunkSize = 30;
+      for (var i = 0; i < ids.length; i += chunkSize) {
+        final chunk = ids.skip(i).take(chunkSize).toList();
+        final snapshot = await FirebaseFirestore.instance
+            .collection('courses')
+            .where(FieldPath.documentId, whereIn: chunk)
+            .get();
+        for (final doc in snapshot.docs) {
+          fetched[doc.id] =
+              CourseModel.fromFirestore(doc);
+        }
+      }
+      if (mounted) setState(() => _courseData = fetched);
+    } catch (e) {
+      debugPrint('Error fetching saved course data: $e');
+    }
   }
 
   Future<void> _removeCourse(String courseId) async {
@@ -119,7 +147,9 @@ class _SavedCoursesPageState extends State<SavedCoursesPage> {
   }
 
   Widget _buildSavedCourseCard(String courseId) {
-    // For demo purposes, show mock coursedata
+    final course = _courseData[courseId];
+    final isFree = course == null ? false : course.priceEmc == 0;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -131,16 +161,21 @@ class _SavedCoursesPageState extends State<SavedCoursesPage> {
         color: Colors.transparent,
         child: InkWell(
           onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Course details coming soon!')),
-            );
+            if (course != null) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => CourseDetailPage(course: course),
+                ),
+              );
+            }
           },
           borderRadius: BorderRadius.circular(16),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                // Course thumbnail placeholder
+                // Course thumbnail
                 Container(
                   width: 80,
                   height: 80,
@@ -148,11 +183,24 @@ class _SavedCoursesPageState extends State<SavedCoursesPage> {
                     color: const Color(0xFF1A2744),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(
-                    Icons.school,
-                    color: Colors.white24,
-                    size: 32,
-                  ),
+                  child: course?.thumbnailUrl != null
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.network(
+                            course!.thumbnailUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => const Icon(
+                              Icons.school,
+                              color: Colors.white24,
+                              size: 32,
+                            ),
+                          ),
+                        )
+                      : const Icon(
+                          Icons.school,
+                          color: Colors.white24,
+                          size: 32,
+                        ),
                 ),
                 const SizedBox(width: 16),
                 // Course info
@@ -160,47 +208,95 @@ class _SavedCoursesPageState extends State<SavedCoursesPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Saved Course',
-                        style: TextStyle(
+                      Text(
+                        course?.title ?? 'Loading...',
+                        style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 16,
+                          fontSize: 15,
                           fontWeight: FontWeight.bold,
                         ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Course ID: $courseId',
-                        style: const TextStyle(
-                          color: Colors.white54,
-                          fontSize: 12,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF3B82F6).withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: const Text(
-                          'Bookmarked',
-                          style: TextStyle(
-                            color: Color(0xFF3B82F6),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
+                      if (course != null) ...
+                        [
+                          const SizedBox(height: 4),
+                          Text(
+                            course.instructor,
+                            style: const TextStyle(
+                              color: Colors.white54,
+                              fontSize: 12,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: (isFree
+                                          ? const Color(0xFF10B981)
+                                          : const Color(0xFFFBBF24))
+                                      .withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  isFree
+                                      ? 'FREE'
+                                      : '${course.priceEmc} EMC',
+                                  style: TextStyle(
+                                    color: isFree
+                                        ? const Color(0xFF10B981)
+                                        : const Color(0xFFFBBF24),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF3B82F6)
+                                      .withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Text(
+                                  'Bookmarked',
+                                  style: TextStyle(
+                                    color: Color(0xFF3B82F6),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ]
+                      else
+                        const Padding(
+                          padding: EdgeInsets.only(top: 4),
+                          child: Text(
+                            'Course data unavailable',
+                            style: TextStyle(
+                              color: Colors.white38,
+                              fontSize: 12,
+                            ),
                           ),
                         ),
-                      ),
                     ],
                   ),
                 ),
-                // Remove button
+                // Remove bookmark
                 IconButton(
-                  icon: const Icon(Icons.bookmark, color: Color(0xFF3B82F6)),
+                  icon: const Icon(Icons.bookmark,
+                      color: Color(0xFF3B82F6)),
                   onPressed: () => _removeCourse(courseId),
                 ),
               ],

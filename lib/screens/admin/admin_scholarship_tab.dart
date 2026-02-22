@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import '../../models/scholarship_model.dart';
 import '../../models/grade_model.dart';
@@ -809,7 +810,7 @@ class _AdminScholarshipTabState extends State<AdminScholarshipTab> {
                     scholarshipId: scholarship.id,
                     finalGPA: gpa,
                     finalGrade: selectedGrade!.toString().split('.').last,
-                    processedById: 'admin', // TODO: Get actual admin ID
+                    processedById: FirebaseAuth.instance.currentUser?.uid ?? '',
                   );
 
                   if (context.mounted) {
