@@ -182,6 +182,7 @@ class PaymentFailurePage extends StatelessWidget {
   Widget _buildDetailRow(String label, String value, {bool isFailed = false}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
@@ -190,32 +191,40 @@ class PaymentFailurePage extends StatelessWidget {
             fontSize: 14,
           ),
         ),
-        if (isFailed)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.red.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: Colors.red, width: 1),
-            ),
-            child: Text(
+        const SizedBox(width: 12),
+        Flexible(
+          child: if (isFailed)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.red.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.red, width: 1),
+              ),
+              child: Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.red,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            )
+          else
+            Text(
               value,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
               style: const TextStyle(
-                color: Colors.red,
+                color: Colors.white,
                 fontSize: 14,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w600,
               ),
             ),
-          )
-        else
-          Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+        ),
       ],
     );
   }

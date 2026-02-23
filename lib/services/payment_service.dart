@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:math';
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_paystack_plus/flutter_paystack_plus.dart';
+import 'package:http/http.dart' as http;
 import 'notification_service.dart';
 import 'achievement_service.dart';
 
@@ -140,6 +142,109 @@ class PaymentService {
       debugPrint('[PaymentService] Paystack checkout error: $e');
       debugPrint('[PaymentService] Stack trace: $stackTrace');
       rethrow;
+    }
+  }
+
+  /// Initialize a Paystack transaction via HTTP API (for webview checkout)
+  ///
+  /// Returns a map with:
+  /// - success: bool
+  /// - authorization_url: String (if successful)
+  /// - reference: String
+  /// - message: String (if failed)
+  Future<Map<String, dynamic>> initializePaystackTransaction({
+    required String email,
+    required double amountNgn,
+    required String reference,
+  }) async {
+    try {
+      await _loadKeys();
+
+      // Validate inputs
+      if (email.isEmpty) {
+        return {
+          'success': false,
+          'message': 'Email is required',
+          'reference': reference,
+        };
+      }
+      if (amountNgn <= 0) {
+        return {
+          'success': false,
+          'message': 'Amount must be greater than 0',
+          'reference': reference,
+        };
+      }
+      if (_secretKey.isEmpty) {
+        return {
+          'success': false,
+          'message': 'Paystack secret key not configured',
+          'reference': reference,
+        };
+      }
+
+      final amountInKobo = (amountNgn * 100).toInt();
+
+      debugPrint('[PaymentService] Initializing Paystack transaction');
+      debugPrint('[PaymentService] Amount: ₦$amountNgn ($amountInKobo kobo)');
+      debugPrint('[PaymentService] Reference: $reference');
+      debugPrint('[PaymentService] Email: $email');
+
+      final response = await http.post(
+        Uri.parse('https://api.paystack.co/transaction/initialize'),
+        headers: {
+          'Authorization': 'Bearer $_secretKey',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'email': email,
+          'amount': amountInKobo,
+          'reference': reference,
+          'currency': 'NGN',
+          'callback_url': 'https://emtech-school.web.app/payment-callback',
+        }),
+      );
+
+      debugPrint('[PaymentService] Response status: ${response.statusCode}');
+      debugPrint('[PaymentService] Response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['status'] == true) {
+          final authUrl = data['data']['authorization_url'];
+          final accessCode = data['data']['access_code'];
+          
+          debugPrint('[PaymentService] Transaction initialized successfully');
+          debugPrint('[PaymentService] Authorization URL: $authUrl');
+          
+          return {
+            'success': true,
+            'authorization_url': authUrl,
+            'access_code': accessCode,
+            'reference': reference,
+          };
+        } else {
+          return {
+            'success': false,
+            'message': data['message'] ?? 'Failed to initialize transaction',
+            'reference': reference,
+          };
+        }
+      } else {
+        return {
+          'success': false,
+          'message': 'Server returned ${response.statusCode}',
+          'reference': reference,
+        };
+      }
+    } catch (e, stackTrace) {
+      debugPrint('[PaymentService] Initialize transaction error: $e');
+      debugPrint('[PaymentService] Stack trace: $stackTrace');
+      return {
+        'success': false,
+        'message': e.toString(),
+        'reference': reference,
+      };
     }
   }
 

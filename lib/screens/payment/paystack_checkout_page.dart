@@ -101,6 +101,9 @@ class _PaystackCheckoutPageState extends State<PaystackCheckoutPage> {
             ),
             child: Text(
               widget.itemName,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
               style: const TextStyle(color: Colors.blue, fontSize: 13, fontWeight: FontWeight.w600),
             ),
           ),

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../services/auth_service.dart';
 import '../../services/payment_service.dart';
-import 'paystack_checkout_page.dart';
+import 'paystack_webview_page.dart';
 import 'payment_success_page.dart';
 
 class PaymentSelectionPage extends StatelessWidget {
@@ -84,6 +84,8 @@ class PaymentSelectionPage extends StatelessWidget {
                       children: [
                         Text(
                           itemName,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 16,
@@ -93,6 +95,8 @@ class PaymentSelectionPage extends StatelessWidget {
                         const SizedBox(height: 4),
                         Text(
                           itemType == 'course' ? 'Course Purchase' : 'Add Funds',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: Colors.white54,
                             fontSize: 13,
@@ -361,7 +365,7 @@ class PaymentSelectionPage extends StatelessWidget {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => PaystackCheckoutPage(
+        builder: (context) => PaystackWebViewPage(
           itemName: itemName,
           itemId: itemId,
           amount: amount,
