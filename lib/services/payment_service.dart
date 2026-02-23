@@ -37,10 +37,12 @@ class PaymentService {
     if (_keysLoaded) return;
     try {
       final rc = FirebaseRemoteConfig.instance;
-      await rc.setConfigSettings(RemoteConfigSettings(
-        fetchTimeout: const Duration(seconds: 15),
-        minimumFetchInterval: const Duration(hours: 1),
-      ));
+      await rc.setConfigSettings(
+        RemoteConfigSettings(
+          fetchTimeout: const Duration(seconds: 15),
+          minimumFetchInterval: const Duration(hours: 1),
+        ),
+      );
       await rc.setDefaults({
         'paystack_public_key':
             'pk_test_d7854421896c21ddaeb4f420f1940ce0e5090c99',
@@ -63,8 +65,10 @@ class PaymentService {
   String generateReference() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     final rng = Random.secure();
-    final suffix =
-        List.generate(10, (_) => chars[rng.nextInt(chars.length)]).join();
+    final suffix = List.generate(
+      10,
+      (_) => chars[rng.nextInt(chars.length)],
+    ).join();
     return 'EMTX_${DateTime.now().millisecondsSinceEpoch}_$suffix';
   }
 
@@ -104,7 +108,9 @@ class PaymentService {
       debugPrint('[PaymentService] Amount: ₦$amountNgn ($amountInKobo kobo)');
       debugPrint('[PaymentService] Reference: $ref');
       debugPrint('[PaymentService] Email: $email');
-      debugPrint('[PaymentService] Public Key: ${_publicKey.substring(0, 10)}...');
+      debugPrint(
+        '[PaymentService] Public Key: ${_publicKey.substring(0, 10)}...',
+      );
 
       try {
         await FlutterPaystackPlus.openPaystackPopup(
@@ -119,7 +125,9 @@ class PaymentService {
           onClosed: () {
             debugPrint('[PaymentService] Paystack popup closed');
             if (!completer.isCompleted) {
-              completer.complete(PaystackResult(success: false, reference: ref));
+              completer.complete(
+                PaystackResult(success: false, reference: ref),
+              );
             }
           },
           onSuccess: () async {
@@ -213,10 +221,10 @@ class PaymentService {
         if (data['status'] == true) {
           final authUrl = data['data']['authorization_url'];
           final accessCode = data['data']['access_code'];
-          
+
           debugPrint('[PaymentService] Transaction initialized successfully');
           debugPrint('[PaymentService] Authorization URL: $authUrl');
-          
+
           return {
             'success': true,
             'authorization_url': authUrl,
@@ -245,6 +253,78 @@ class PaymentService {
         'message': e.toString(),
         'reference': reference,
       };
+    }
+  }
+
+  /// Verify a Paystack transaction by reference
+  ///
+  /// Returns a map with:
+  /// - success: bool
+  /// - amount: double (in NGN)
+  /// - status: String ('success', 'failed', etc.)
+  /// - message: String (if verification failed)
+  Future<Map<String, dynamic>> verifyPaystackTransaction({
+    required String reference,
+  }) async {
+    try {
+      await _loadKeys();
+
+      if (_secretKey.isEmpty) {
+        return {
+          'success': false,
+          'message': 'Paystack secret key not configured',
+        };
+      }
+
+      debugPrint('[PaymentService] Verifying transaction: $reference');
+
+      final response = await http.get(
+        Uri.parse('https://api.paystack.co/transaction/verify/$reference'),
+        headers: {
+          'Authorization': 'Bearer $_secretKey',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      debugPrint(
+        '[PaymentService] Verification response: ${response.statusCode}',
+      );
+      debugPrint('[PaymentService] Verification body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['status'] == true) {
+          final transactionData = data['data'];
+          final status = transactionData['status']; // 'success', 'failed', etc.
+          final amount = (transactionData['amount'] / 100)
+              .toDouble(); // Convert from kobo to NGN
+
+          debugPrint(
+            '[PaymentService] Transaction status: $status, Amount: ₦$amount',
+          );
+
+          return {
+            'success': status == 'success',
+            'status': status,
+            'amount': amount,
+            'reference': reference,
+          };
+        } else {
+          return {
+            'success': false,
+            'message': data['message'] ?? 'Verification failed',
+          };
+        }
+      } else {
+        return {
+          'success': false,
+          'message': 'Server returned ${response.statusCode}',
+        };
+      }
+    } catch (e, stackTrace) {
+      debugPrint('[PaymentService] Verification error: $e');
+      debugPrint('[PaymentService] Stack trace: $stackTrace');
+      return {'success': false, 'message': e.toString()};
     }
   }
 
@@ -325,13 +405,16 @@ class PaymentService {
       await _notificationService.createNotification(
         userId: userId,
         title: 'Enrollment Successful! 🎉',
-        message: 'You are now enrolled in "$courseName". +${reward} EMC reward pending upon completion!',
+        message:
+            'You are now enrolled in "$courseName". +${reward} EMC reward pending upon completion!',
         type: 'enrollment',
         actionUrl: '/course/$courseId',
       );
 
       // Trigger achievement check for enrollment
-      unawaited(AchievementService().onEnrollment(userId, isPaid: isPaidCourse));
+      unawaited(
+        AchievementService().onEnrollment(userId, isPaid: isPaidCourse),
+      );
     } catch (e) {
       debugPrint('[PaymentService] enrollAfterPayment error: $e');
       rethrow;

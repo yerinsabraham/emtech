@@ -33,16 +33,14 @@ import 'models/transaction_model.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   // Initialize FCM push notifications
   await PushNotificationService.initialize();
-  
+
   // Initialize Agora configuration from Firebase Remote Config
   await AgoraConfig.initialize();
-  
+
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -112,18 +110,20 @@ class _SplashScreenState extends State<SplashScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1500),
     );
-    _fadeIn = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
-    );
+    _fadeIn = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeIn));
     _controller.forward();
 
     Future.delayed(const Duration(seconds: 3), () async {
       if (!mounted) return;
-      
+
       // Navigate to main app
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const MainShell(),
+          pageBuilder: (context, animation, secondaryAnimation) =>
+              const MainShell(),
           transitionsBuilder: (context, animation, secondaryAnimation, child) =>
               FadeTransition(opacity: animation, child: child),
           transitionDuration: const Duration(milliseconds: 500),
@@ -164,8 +164,10 @@ class _SplashScreenState extends State<SplashScreen>
                   ),
                   const SizedBox(width: 4),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.only(
@@ -218,8 +220,8 @@ class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
 
   List<Widget> _getPagesForRole(AuthService authService) {
-    if (!authService.isAuthenticated) {
-      // Not logged in - default student view
+    if (!authService.isAuthenticated || authService.userModel == null) {
+      // Not logged in or user data not loaded yet - default student view
       return const [
         HomePage(),
         BookshopPage(),
@@ -400,7 +402,7 @@ class _MainShellState extends State<MainShell> {
   @override
   Widget build(BuildContext context) {
     final authService = context.watch<AuthService>();
-    
+
     // Show loading screen while user data is being loaded
     if (authService.isAuthenticated && authService.isLoadingUserData) {
       return const Scaffold(
@@ -412,7 +414,7 @@ class _MainShellState extends State<MainShell> {
         ),
       );
     }
-    
+
     final pages = _getPagesForRole(authService);
     final navItems = _getNavItemsForRole(authService);
 
@@ -420,54 +422,59 @@ class _MainShellState extends State<MainShell> {
     if (_currentIndex >= pages.length) {
       _currentIndex = 0;
     }
-    
+
     return IncomingCallListener(
       child: Scaffold(
         body: pages[_currentIndex],
         bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFF0B1120),
-          border: Border(
-            top: BorderSide(color: Color(0xFF1A2940), width: 0.5),
+          decoration: const BoxDecoration(
+            color: Color(0xFF0B1120),
+            border: Border(
+              top: BorderSide(color: Color(0xFF1A2940), width: 0.5),
+            ),
+          ),
+          child: BottomNavigationBar(
+            currentIndex: _currentIndex,
+            onTap: (i) {
+              // Check if the page requires authentication
+              final requiresAuth = [
+                2,
+                3,
+              ]; // Wallet (2) and Profile (3) require auth
+
+              if (requiresAuth.contains(i) && !authService.isAuthenticated) {
+                // Show login modal
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (context) => Container(
+                    height: MediaQuery.of(context).size.height * 0.9,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF080C14),
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(20),
+                      ),
+                    ),
+                    child: const LoginPage(),
+                  ),
+                );
+              } else {
+                setState(() => _currentIndex = i);
+              }
+            },
+            backgroundColor: const Color(0xFF0B1120),
+            selectedItemColor: Colors.white,
+            unselectedItemColor: Colors.white30,
+            type: BottomNavigationBarType.fixed,
+            selectedFontSize: 11,
+            unselectedFontSize: 11,
+            iconSize: 24,
+            elevation: 0,
+            items: navItems,
           ),
         ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (i) {
-            // Check if the page requires authentication
-            final requiresAuth = [2, 3]; // Wallet (2) and Profile (3) require auth
-            
-            if (requiresAuth.contains(i) && !authService.isAuthenticated) {
-              // Show login modal
-              showModalBottomSheet(
-                context: context,
-                isScrollControlled: true,
-                backgroundColor: Colors.transparent,
-                builder: (context) => Container(
-                  height: MediaQuery.of(context).size.height * 0.9,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF080C14),
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                  ),
-                  child: const LoginPage(),
-                ),
-              );
-            } else {
-              setState(() => _currentIndex = i);
-            }
-          },
-          backgroundColor: const Color(0xFF0B1120),
-          selectedItemColor: Colors.white,
-          unselectedItemColor: Colors.white30,
-          type: BottomNavigationBarType.fixed,
-          selectedFontSize: 11,
-          unselectedFontSize: 11,
-          iconSize: 24,
-          elevation: 0,
-          items: navItems,
-        ),
       ),
-    ),
     );
   }
 }
@@ -515,7 +522,9 @@ class _HomePageState extends State<HomePage> {
                       const SizedBox(width: 3),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.only(
@@ -555,7 +564,10 @@ class _HomePageState extends State<HomePage> {
                     colors: [Color(0xFF1A2744), Color(0xFF0F1B30)],
                   ),
                   borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: const Color(0xFF2A3F5F).withAlpha(80), width: 0.5),
+                  border: Border.all(
+                    color: const Color(0xFF2A3F5F).withAlpha(80),
+                    width: 0.5,
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -766,9 +778,9 @@ class _HomePageState extends State<HomePage> {
                 break;
             }
             if (page != null) {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (context) => page!),
-              );
+              Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (context) => page!));
             }
           },
           borderRadius: BorderRadius.circular(16),
@@ -778,11 +790,7 @@ class _HomePageState extends State<HomePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Icon(
-                  icon,
-                  color: Colors.white60,
-                  size: 28,
-                ),
+                Icon(icon, color: Colors.white60, size: 28),
                 Text(
                   title,
                   style: const TextStyle(
@@ -825,9 +833,9 @@ class _HomePageState extends State<HomePage> {
                 break;
             }
             if (page != null) {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (context) => page!),
-              );
+              Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (context) => page!));
             }
           },
           borderRadius: BorderRadius.circular(14),
@@ -836,11 +844,7 @@ class _HomePageState extends State<HomePage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  icon,
-                  color: Colors.white54,
-                  size: 24,
-                ),
+                Icon(icon, color: Colors.white54, size: 24),
                 const SizedBox(height: 8),
                 Text(
                   title,
@@ -863,7 +867,7 @@ class _HomePageState extends State<HomePage> {
   Widget _buildNotificationBell(BuildContext context) {
     final authService = context.watch<AuthService>();
     final notificationService = context.watch<NotificationService>();
-    
+
     // Start listening to notifications if user is logged in
     if (authService.isAuthenticated && authService.userModel != null) {
       notificationService.startListening(authService.userModel!.uid);
@@ -899,7 +903,8 @@ class _HomePageState extends State<HomePage> {
             color: Colors.white70,
             size: 28,
           ),
-          if (authService.isAuthenticated && notificationService.unreadCount > 0)
+          if (authService.isAuthenticated &&
+              notificationService.unreadCount > 0)
             Positioned(
               right: 0,
               top: 0,
@@ -909,13 +914,10 @@ class _HomePageState extends State<HomePage> {
                   color: Color(0xFFFF3B30),
                   shape: BoxShape.circle,
                 ),
-                constraints: const BoxConstraints(
-                  minWidth: 16,
-                  minHeight: 16,
-                ),
+                constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
                 child: Text(
-                  notificationService.unreadCount > 9 
-                      ? '9+' 
+                  notificationService.unreadCount > 9
+                      ? '9+'
                       : '${notificationService.unreadCount}',
                   style: const TextStyle(
                     color: Colors.white,
@@ -948,7 +950,7 @@ class _BookshopPageState extends State<BookshopPage> {
   @override
   Widget build(BuildContext context) {
     final firestoreService = context.watch<FirestoreService>();
-    
+
     return SafeArea(
       child: Column(
         children: [
@@ -994,13 +996,15 @@ class _BookshopPageState extends State<BookshopPage> {
           Expanded(
             child: StreamBuilder(
               stream: firestoreService.getBooks(
-                category: _selectedCategory == 'All Books' ? null : _selectedCategory,
+                category: _selectedCategory == 'All Books'
+                    ? null
+                    : _selectedCategory,
               ),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                
+
                 if (!snapshot.hasData || snapshot.data!.isEmpty) {
                   return const Center(
                     child: Text(
@@ -1009,9 +1013,9 @@ class _BookshopPageState extends State<BookshopPage> {
                     ),
                   );
                 }
-                
+
                 final books = snapshot.data!;
-                
+
                 return GridView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 18),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -1070,7 +1074,7 @@ class _BookshopPageState extends State<BookshopPage> {
         child: InkWell(
           onTap: () async {
             final authService = context.read<AuthService>();
-            
+
             // Check if user is authenticated
             if (!authService.isAuthenticated) {
               showModalBottomSheet(
@@ -1081,21 +1085,23 @@ class _BookshopPageState extends State<BookshopPage> {
                   height: MediaQuery.of(context).size.height * 0.9,
                   decoration: const BoxDecoration(
                     color: Color(0xFF080C14),
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(20),
+                    ),
                   ),
                   child: const LoginPage(),
                 ),
               );
               return;
             }
-            
+
             final success = await authService.spendEmcTokens(
               book.priceEmc,
               'Purchased: ${book.title}',
             );
-            
+
             if (!context.mounted) return;
-            
+
             if (success) {
               final firestoreService = context.read<FirestoreService>();
               await firestoreService.addTransaction(
@@ -1109,9 +1115,9 @@ class _BookshopPageState extends State<BookshopPage> {
                   createdAt: DateTime.now(),
                 ),
               );
-              
+
               if (!context.mounted) return;
-              
+
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text('Book purchased successfully!'),
@@ -1254,10 +1260,7 @@ class _GuestWalletPage extends StatelessWidget {
                   children: [
                     const Text(
                       'Total Balance',
-                      style: TextStyle(
-                        color: Colors.white54,
-                        fontSize: 14,
-                      ),
+                      style: TextStyle(color: Colors.white54, fontSize: 14),
                     ),
                     const SizedBox(height: 8),
                     Row(
@@ -1298,7 +1301,10 @@ class _GuestWalletPage extends StatelessWidget {
                                 ),
                               );
                             },
-                            icon: const Icon(Icons.add_circle_outline, size: 18),
+                            icon: const Icon(
+                              Icons.add_circle_outline,
+                              size: 18,
+                            ),
                             label: const Text('Earn'),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: Colors.white,
@@ -1314,7 +1320,10 @@ class _GuestWalletPage extends StatelessWidget {
                               // Navigate to Bookshop
                               DefaultTabController.of(context).animateTo(1);
                             },
-                            icon: const Icon(Icons.shopping_bag_outlined, size: 18),
+                            icon: const Icon(
+                              Icons.shopping_bag_outlined,
+                              size: 18,
+                            ),
                             label: const Text('Spend'),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: Colors.white,
@@ -1425,7 +1434,9 @@ class _GuestWalletPage extends StatelessWidget {
                         } else if (transaction.description.contains('Quiz')) {
                           icon = Icons.quiz_outlined;
                         } else {
-                          icon = isEarned ? Icons.add_circle_outline : Icons.remove_circle_outline;
+                          icon = isEarned
+                              ? Icons.add_circle_outline
+                              : Icons.remove_circle_outline;
                         }
 
                         return _buildTransactionTile(
@@ -1457,7 +1468,12 @@ class _GuestWalletPage extends StatelessWidget {
   }
 
   Widget _buildTransactionTile(
-      String title, String amount, IconData icon, bool isEarned, DateTime timestamp) {
+    String title,
+    String amount,
+    IconData icon,
+    bool isEarned,
+    DateTime timestamp,
+  ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -1475,11 +1491,7 @@ class _GuestWalletPage extends StatelessWidget {
               color: const Color(0xFF0E1827),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(
-              icon,
-              color: Colors.white54,
-              size: 22,
-            ),
+            child: Icon(icon, color: Colors.white54, size: 22),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -1497,10 +1509,7 @@ class _GuestWalletPage extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   _formatTimestamp(timestamp),
-                  style: const TextStyle(
-                    color: Colors.white38,
-                    fontSize: 11,
-                  ),
+                  style: const TextStyle(color: Colors.white38, fontSize: 11),
                 ),
               ],
             ),
@@ -1508,7 +1517,9 @@ class _GuestWalletPage extends StatelessWidget {
           Text(
             amount,
             style: TextStyle(
-              color: isEarned ? const Color(0xFF4CAF50) : const Color(0xFFFF5252),
+              color: isEarned
+                  ? const Color(0xFF4CAF50)
+                  : const Color(0xFFFF5252),
               fontSize: 14,
               fontWeight: FontWeight.bold,
             ),
@@ -1546,7 +1557,8 @@ class ProfilePage extends StatelessWidget {
     final userModel = authService.userModel;
     final currentUser = authService.currentUser;
 
-    final displayName = userModel?.name ?? currentUser?.displayName ?? 'Emtech Student';
+    final displayName =
+        userModel?.name ?? currentUser?.displayName ?? 'Emtech Student';
     final email = currentUser?.email ?? 'student@emtech.edu';
     final emcBalance = userModel?.emcBalance ?? 0;
     final enrolledCoursesCount = userModel?.enrolledCourses.length ?? 0;
@@ -1591,19 +1603,19 @@ class ProfilePage extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 email,
-                style: const TextStyle(
-                  color: Colors.white54,
-                  fontSize: 14,
-                ),
+                style: const TextStyle(color: Colors.white54, fontSize: 14),
               ),
               const SizedBox(height: 12),
-              
+
               // Role Badge
               _buildRoleBadge(userModel?.role ?? 'student'),
-              
+
               const SizedBox(height: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFF1A2744),
                   borderRadius: BorderRadius.circular(20),
@@ -1664,22 +1676,12 @@ class ProfilePage extends StatelessWidget {
                 ),
 
               // Menu Items
-              _buildMenuItem(
-                context,
-                Icons.person_outline,
-                'Edit Profile',
-                () {
-                  Navigator.pushNamed(context, '/edit-profile');
-                },
-              ),
-              _buildMenuItem(
-                context,
-                Icons.history,
-                'Learning History',
-                () {
-                  Navigator.pushNamed(context, '/learning-history');
-                },
-              ),
+              _buildMenuItem(context, Icons.person_outline, 'Edit Profile', () {
+                Navigator.pushNamed(context, '/edit-profile');
+              }),
+              _buildMenuItem(context, Icons.history, 'Learning History', () {
+                Navigator.pushNamed(context, '/learning-history');
+              }),
               _buildMenuItem(
                 context,
                 Icons.bookmark_outline,
@@ -1696,72 +1698,58 @@ class ProfilePage extends StatelessWidget {
                   Navigator.pushNamed(context, '/achievements');
                 },
               ),
-              _buildMenuItem(
-                context,
-                Icons.settings_outlined,
-                'Settings',
-                () {
-                  Navigator.pushNamed(context, '/settings');
-                },
-              ),
-              _buildMenuItem(
-                context,
-                Icons.help_outline,
-                'Help & Support',
-                () {
-                  Navigator.pushNamed(context, '/support');
-                },
-              ),
+              _buildMenuItem(context, Icons.settings_outlined, 'Settings', () {
+                Navigator.pushNamed(context, '/settings');
+              }),
+              _buildMenuItem(context, Icons.help_outline, 'Help & Support', () {
+                Navigator.pushNamed(context, '/support');
+              }),
               const SizedBox(height: 12),
-              _buildMenuItem(
-                context,
-                Icons.logout,
-                'Logout',
-                () async {
-                  // Show confirmation dialog
-                  final shouldLogout = await showDialog<bool>(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      backgroundColor: const Color(0xFF111C2F),
-                      title: const Text(
-                        'Logout',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                      content: const Text(
-                        'Are you sure you want to logout?',
-                        style: TextStyle(color: Colors.white70),
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text(
-                            'Cancel',
-                            style: TextStyle(color: Colors.white54),
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: const Text(
-                            'Logout',
-                            style: TextStyle(color: Color(0xFFFF5252)),
-                          ),
-                        ),
-                      ],
+              _buildMenuItem(context, Icons.logout, 'Logout', () async {
+                // Show confirmation dialog
+                final shouldLogout = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    backgroundColor: const Color(0xFF111C2F),
+                    title: const Text(
+                      'Logout',
+                      style: TextStyle(color: Colors.white),
                     ),
-                  );
+                    content: const Text(
+                      'Are you sure you want to logout?',
+                      style: TextStyle(color: Colors.white70),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text(
+                          'Cancel',
+                          style: TextStyle(color: Colors.white54),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text(
+                          'Logout',
+                          style: TextStyle(color: Color(0xFFFF5252)),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
 
-                  if (shouldLogout == true && context.mounted) {
-                    await authService.signOut();
-                    if (context.mounted) {
-                      Navigator.of(context).pushAndRemoveUntil(
-                        MaterialPageRoute(builder: (context) => const LoginPage()),
-                        (route) => false,
-                      );
-                    }
+                if (shouldLogout == true && context.mounted) {
+                  await authService.signOut();
+                  if (context.mounted) {
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(
+                        builder: (context) => const LoginPage(),
+                      ),
+                      (route) => false,
+                    );
                   }
-                },
-                isDestructive: true,
-              ),
+                }
+              }, isDestructive: true),
             ],
           ),
         ),
@@ -1827,11 +1815,7 @@ class ProfilePage extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Icon(
-            icon,
-            color: Colors.white54,
-            size: 28,
-          ),
+          Icon(icon, color: Colors.white54, size: 28),
           const SizedBox(height: 8),
           Text(
             value,
@@ -1844,10 +1828,7 @@ class ProfilePage extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             label,
-            style: const TextStyle(
-              color: Colors.white54,
-              fontSize: 12,
-            ),
+            style: const TextStyle(color: Colors.white54, fontSize: 12),
           ),
         ],
       ),

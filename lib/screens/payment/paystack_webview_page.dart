@@ -62,7 +62,7 @@ class _PaystackWebViewPageState extends State<PaystackWebViewPage> {
 
       final service = PaymentService.instance;
       final reference = service.generateReference();
-      
+
       setState(() {
         _reference = reference;
         _statusMessage = 'Connecting to Paystack...';
@@ -125,41 +125,64 @@ class _PaystackWebViewPageState extends State<PaystackWebViewPage> {
 
   void _checkPaymentStatus(String url) {
     // Check if payment was successful or failed based on URL
-    if (url.contains('success') || url.contains('callback') && url.contains('status=success')) {
-      _handlePaymentSuccess();
-    } else if (url.contains('cancel') || url.contains('failed')) {
-      _handlePaymentFailure();
-    } else if (url.contains('emtech-school.web.app/payment-callback')) {
-      // Custom callback URL
+    if (url.contains('emtech-school.web.app/payment-callback')) {
+      // Custom callback URL - check for reference or trxref parameter
       if (url.contains('?')) {
         final uri = Uri.parse(url);
-        final status = uri.queryParameters['status'];
-        if (status == 'success') {
+        final reference = uri.queryParameters['reference'];
+        final trxref = uri.queryParameters['trxref'];
+
+        // If reference or trxref exists, payment was initiated successfully
+        if (reference != null && reference.isNotEmpty ||
+            trxref != null && trxref.isNotEmpty) {
+          debugPrint(
+            '[PaystackWebView] Payment callback received with reference: $reference',
+          );
           _handlePaymentSuccess();
         } else {
           _handlePaymentFailure();
         }
       }
+    } else if (url.contains('success') ||
+        (url.contains('callback') && url.contains('status=success'))) {
+      _handlePaymentSuccess();
+    } else if (url.contains('cancel') || url.contains('failed')) {
+      _handlePaymentFailure();
     }
   }
 
   Future<void> _handlePaymentSuccess() async {
     if (_isProcessing) return;
-    
+
     setState(() {
       _isProcessing = true;
-      _statusMessage = 'Processing payment...';
+      _statusMessage = 'Verifying payment...';
     });
 
     try {
       final auth = context.read<AuthService>();
       final userId = auth.currentUser?.uid;
-      
+
       if (userId == null || _reference == null) {
         throw Exception('User ID or reference not found');
       }
 
       final service = PaymentService.instance;
+
+      // Verify payment with Paystack API
+      final verification = await service.verifyPaystackTransaction(
+        reference: _reference!,
+      );
+
+      if (!verification['success']) {
+        throw Exception(
+          verification['message'] ?? 'Payment verification failed',
+        );
+      }
+
+      setState(() {
+        _statusMessage = 'Processing payment...';
+      });
 
       // Record payment
       await service.recordPayment(
@@ -219,7 +242,7 @@ class _PaystackWebViewPageState extends State<PaystackWebViewPage> {
 
   void _handlePaymentFailure() {
     if (_isProcessing) return;
-    
+
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
@@ -234,10 +257,7 @@ class _PaystackWebViewPageState extends State<PaystackWebViewPage> {
 
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red.shade700,
-      ),
+      SnackBar(content: Text(message), backgroundColor: Colors.red.shade700),
     );
   }
 
@@ -322,7 +342,10 @@ class _PaystackWebViewPageState extends State<PaystackWebViewPage> {
               children: [
                 // Amount card at top
                 Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 12,
+                    horizontal: 20,
+                  ),
                   color: const Color(0xFF111C2F),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -344,6 +367,8 @@ class _PaystackWebViewPageState extends State<PaystackWebViewPage> {
                             const SizedBox(height: 4),
                             Text(
                               'Amount: ₦${_amountNgn.toStringAsFixed(2)}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 color: Colors.white54,
                                 fontSize: 12,
@@ -352,6 +377,7 @@ class _PaystackWebViewPageState extends State<PaystackWebViewPage> {
                           ],
                         ),
                       ),
+                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,
@@ -389,7 +415,9 @@ class _PaystackWebViewPageState extends State<PaystackWebViewPage> {
                   LinearProgressIndicator(
                     value: _loadingProgress,
                     backgroundColor: const Color(0xFF1A2940),
-                    valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      Colors.blue,
+                    ),
                   ),
                 // WebView
                 Expanded(

@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class UserModel {
   final String uid;
   final String email;
@@ -9,7 +11,7 @@ class UserModel {
   final String? session; // Summer, Winter, Spring, Harmatan
   final DateTime createdAt;
   final DateTime updatedAt;
-  
+
   // Phase 3: Tokenomics fields
   final double totalEMCEarned; // Lifetime EMC earned
   final double unredeemedEMC; // EMC from grades not yet redeemed
@@ -59,9 +61,22 @@ class UserModel {
       session: map['session'],
       phone: map['phone'],
       bio: map['bio'],
-      createdAt: DateTime.parse(map['createdAt']),
-      updatedAt: DateTime.parse(map['updatedAt']),
+      createdAt: _parseDateTime(map['createdAt']),
+      updatedAt: _parseDateTime(map['updatedAt']),
     );
+  }
+
+  // Helper method to parse DateTime from either Timestamp or String
+  static DateTime _parseDateTime(dynamic value) {
+    if (value == null) {
+      return DateTime.now();
+    } else if (value is Timestamp) {
+      return value.toDate();
+    } else if (value is String) {
+      return DateTime.parse(value);
+    } else {
+      return DateTime.now();
+    }
   }
 
   Map<String, dynamic> toMap() {

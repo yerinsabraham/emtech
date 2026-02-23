@@ -17,11 +17,12 @@ class PaymentFailurePage extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFF080C14),
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              const SizedBox(height: 40),
               // Failure Animation Container
               Container(
                 width: 120,
@@ -37,7 +38,7 @@ class PaymentFailurePage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 32),
-              
+
               // Failure Title
               const Text(
                 'Payment Failed',
@@ -48,20 +49,23 @@ class PaymentFailurePage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 12),
-              
+
               // Failure Message
-              Text(
-                errorMessage ?? 
-                    'We couldn\'t process your payment at this time. Please try again.',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 16,
-                  height: 1.5,
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Text(
+                  errorMessage ??
+                      'We couldn\'t process your payment at this time. Please try again.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 16,
+                    height: 1.5,
+                  ),
                 ),
               ),
               const SizedBox(height: 32),
-              
+
               // Payment Details Card
               Container(
                 padding: const EdgeInsets.all(20),
@@ -74,14 +78,17 @@ class PaymentFailurePage extends StatelessWidget {
                   children: [
                     _buildDetailRow('Item', itemName),
                     const Divider(color: Color(0xFF1A2940), height: 24),
-                    _buildDetailRow('Amount', '${amount.toStringAsFixed(0)} EMC'),
+                    _buildDetailRow(
+                      'Amount',
+                      '${amount.toStringAsFixed(0)} EMC',
+                    ),
                     const Divider(color: Color(0xFF1A2940), height: 24),
                     _buildDetailRow('Status', 'Failed', isFailed: true),
                   ],
                 ),
               ),
               const SizedBox(height: 32),
-              
+
               // Common Issues
               Container(
                 padding: const EdgeInsets.all(16),
@@ -94,6 +101,7 @@ class PaymentFailurePage extends StatelessWidget {
                   ),
                 ),
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
@@ -104,12 +112,14 @@ class PaymentFailurePage extends StatelessWidget {
                           size: 20,
                         ),
                         const SizedBox(width: 8),
-                        Text(
-                          'Common Issues:',
-                          style: TextStyle(
-                            color: Colors.orange.shade300,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
+                        Flexible(
+                          child: Text(
+                            'Common Issues:',
+                            style: TextStyle(
+                              color: Colors.orange.shade300,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ],
@@ -123,7 +133,7 @@ class PaymentFailurePage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 32),
-              
+
               // Action Buttons
               SizedBox(
                 width: double.infinity,
@@ -140,10 +150,7 @@ class PaymentFailurePage extends StatelessWidget {
                   ),
                   child: const Text(
                     'Try Again',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
@@ -165,13 +172,11 @@ class PaymentFailurePage extends StatelessWidget {
                   ),
                   child: const Text(
                     'Go to Home',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
+              const SizedBox(height: 40),
             ],
           ),
         ),
@@ -186,44 +191,43 @@ class PaymentFailurePage extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            color: Colors.white54,
-            fontSize: 14,
-          ),
+          style: const TextStyle(color: Colors.white54, fontSize: 14),
         ),
         const SizedBox(width: 12),
         Flexible(
-          child: if (isFailed)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.red.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.red, width: 1),
-              ),
-              child: Text(
-                value,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.red,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
+          child: isFailed
+              ? Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.red, width: 1),
+                  ),
+                  child: Text(
+                    value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.red,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                )
+              : Text(
+                  value,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-            )
-          else
-            Text(
-              value,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.right,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
         ),
       ],
     );
@@ -233,21 +237,22 @@ class PaymentFailurePage extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             width: 4,
             height: 4,
+            margin: const EdgeInsets.only(top: 6),
             decoration: BoxDecoration(
               color: Colors.orange.shade300,
               shape: BoxShape.circle,
             ),
           ),
           const SizedBox(width: 8),
-          Text(
-            issue,
-            style: TextStyle(
-              color: Colors.orange.shade100,
-              fontSize: 13,
+          Expanded(
+            child: Text(
+              issue,
+              style: TextStyle(color: Colors.orange.shade100, fontSize: 13),
             ),
           ),
         ],

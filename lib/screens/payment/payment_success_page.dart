@@ -17,11 +17,12 @@ class PaymentSuccessPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFF080C14),
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              const SizedBox(height: 40),
               // Success Animation Container
               Container(
                 width: 120,
@@ -37,7 +38,7 @@ class PaymentSuccessPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 32),
-              
+
               // Success Title
               const Text(
                 'Payment Successful!',
@@ -48,21 +49,22 @@ class PaymentSuccessPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 12),
-              
+
               // Success Message
-              Text(
-                'Your payment has been processed successfully.',
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 16,
-                  height: 1.5,
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Text(
+                  'Your payment has been processed successfully.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 16,
+                    height: 1.5,
+                  ),
                 ),
               ),
               const SizedBox(height: 32),
-              
+
               // Payment Details Card
               Container(
                 padding: const EdgeInsets.all(20),
@@ -75,7 +77,10 @@ class PaymentSuccessPage extends StatelessWidget {
                   children: [
                     _buildDetailRow('Item', itemName),
                     const Divider(color: Color(0xFF1A2940), height: 24),
-                    _buildDetailRow('Amount', '${amount.toStringAsFixed(0)} EMC'),
+                    _buildDetailRow(
+                      'Amount',
+                      '${amount.toStringAsFixed(0)} EMC',
+                    ),
                     const Divider(color: Color(0xFF1A2940), height: 24),
                     _buildDetailRow('Payment Method', paymentMethod),
                     const Divider(color: Color(0xFF1A2940), height: 24),
@@ -84,7 +89,7 @@ class PaymentSuccessPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 32),
-              
+
               // Action Buttons
               SizedBox(
                 width: double.infinity,
@@ -102,10 +107,7 @@ class PaymentSuccessPage extends StatelessWidget {
                   ),
                   child: const Text(
                     'Go to Home',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
@@ -127,13 +129,11 @@ class PaymentSuccessPage extends StatelessWidget {
                   ),
                   child: const Text(
                     'View Details',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
+              const SizedBox(height: 40),
             ],
           ),
         ),
@@ -148,44 +148,43 @@ class PaymentSuccessPage extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            color: Colors.white54,
-            fontSize: 14,
-          ),
+          style: const TextStyle(color: Colors.white54, fontSize: 14),
         ),
         const SizedBox(width: 12),
         Flexible(
-          child: if (isSuccess)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.green.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.green, width: 1),
-              ),
-              child: Text(
-                value,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.green,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
+          child: isSuccess
+              ? Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.green, width: 1),
+                  ),
+                  child: Text(
+                    value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.green,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                )
+              : Text(
+                  value,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-            )
-          else
-            Text(
-              value,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.right,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
         ),
       ],
     );

@@ -45,7 +45,11 @@ class _PaystackCheckoutPageState extends State<PaystackCheckoutPage> {
         ),
         title: const Text(
           'Paystack Checkout',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white),
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
         ),
       ),
       body: SingleChildScrollView(
@@ -81,11 +85,18 @@ class _PaystackCheckoutPageState extends State<PaystackCheckoutPage> {
       ),
       child: Column(
         children: [
-          const Text('Amount to Pay', style: TextStyle(color: Colors.white54, fontSize: 14)),
+          const Text(
+            'Amount to Pay',
+            style: TextStyle(color: Colors.white54, fontSize: 14),
+          ),
           const SizedBox(height: 8),
           Text(
             '₦${_amountNgn.toStringAsFixed(2)}',
-            style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 36,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
@@ -104,7 +115,11 @@ class _PaystackCheckoutPageState extends State<PaystackCheckoutPage> {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.blue, fontSize: 13, fontWeight: FontWeight.w600),
+              style: const TextStyle(
+                color: Colors.blue,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -127,7 +142,11 @@ class _PaystackCheckoutPageState extends State<PaystackCheckoutPage> {
         children: [
           const Text(
             'Accepted Payment Methods',
-            style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const SizedBox(height: 12),
           Wrap(
@@ -150,7 +169,10 @@ class _PaystackCheckoutPageState extends State<PaystackCheckoutPage> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 ),
                 const SizedBox(width: 12),
-                Text(_statusMessage, style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                Text(
+                  _statusMessage,
+                  style: const TextStyle(color: Colors.white70, fontSize: 13),
+                ),
               ],
             ),
           ],
@@ -160,14 +182,17 @@ class _PaystackCheckoutPageState extends State<PaystackCheckoutPage> {
   }
 
   Widget _chip(String label, Color color) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: color.withOpacity(0.4)),
-        ),
-        child: Text(label, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600)),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    decoration: BoxDecoration(
+      color: color.withOpacity(0.15),
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: color.withOpacity(0.4)),
+    ),
+    child: Text(
+      label,
+      style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600),
+    ),
+  );
 
   // ── Pay button ─────────────────────────────────────────────────────────────
 
@@ -184,11 +209,21 @@ class _PaystackCheckoutPageState extends State<PaystackCheckoutPage> {
           ? const SizedBox(
               width: 20,
               height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
             )
-          : Text(
-              'Pay ₦${_amountNgn.toStringAsFixed(2)} with Paystack',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white),
+          : FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                'Pay ₦${_amountNgn.toStringAsFixed(2)} with Paystack',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
             ),
     );
   }
@@ -211,7 +246,11 @@ class _PaystackCheckoutPageState extends State<PaystackCheckoutPage> {
             child: Text(
               'Payments are secured by Paystack. '
               'Your card details are never stored on our servers.',
-              style: TextStyle(color: Colors.blue.shade200, fontSize: 12, height: 1.4),
+              style: TextStyle(
+                color: Colors.blue.shade200,
+                fontSize: 12,
+                height: 1.4,
+              ),
             ),
           ),
         ],
@@ -252,6 +291,19 @@ class _PaystackCheckoutPageState extends State<PaystackCheckoutPage> {
       if (!mounted) return;
 
       if (response.success) {
+        setState(() => _statusMessage = 'Verifying payment…');
+
+        // Verify payment with Paystack API
+        final verification = await service.verifyPaystackTransaction(
+          reference: response.reference,
+        );
+
+        if (!verification['success']) {
+          throw Exception(
+            verification['message'] ?? 'Payment verification failed',
+          );
+        }
+
         setState(() => _statusMessage = 'Finalising…');
 
         // Record to Firestore
@@ -314,7 +366,9 @@ class _PaystackCheckoutPageState extends State<PaystackCheckoutPage> {
         _isProcessing = false;
         _statusMessage = 'An error occurred.';
       });
-      _showError('Payment failed: $e\n\nPlease check your internet connection and try again.');
+      _showError(
+        'Payment failed: $e\n\nPlease check your internet connection and try again.',
+      );
     }
   }
 
