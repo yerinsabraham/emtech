@@ -256,10 +256,33 @@ class _InfoChip extends StatelessWidget {
 // CERTIFICATE VIEWER PAGE - Full certificate view with download
 // ═══════════════════════════════════════════════════════════════════
 
-class CertificateViewerPage extends StatelessWidget {
+class CertificateViewerPage extends StatefulWidget {
   final CertificateModel certificate;
 
   const CertificateViewerPage({super.key, required this.certificate});
+
+  @override
+  State<CertificateViewerPage> createState() => _CertificateViewerPageState();
+}
+
+class _CertificateViewerPageState extends State<CertificateViewerPage> {
+  final CertificateService _certService = CertificateService();
+  bool _isGeneratingPdf = false;
+
+  Future<void> _downloadAndShare() async {
+    setState(() => _isGeneratingPdf = true);
+    try {
+      await _certService.generateAndSharePdf(widget.certificate);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to generate PDF: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isGeneratingPdf = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -270,28 +293,23 @@ class CertificateViewerPage extends StatelessWidget {
         elevation: 0,
         title: const Text('Certificate'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.download),
-            tooltip: 'Download PDF',
-            onPressed: () {
-              // TODO: Implement PDF download
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('PDF download coming soon!')),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.share),
-            tooltip: 'Share',
-            onPressed: () {
-              // TODO: Implement sharing
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Share link: ${certificate.verificationUrl}'),
-                ),
-              );
-            },
-          ),
+          if (_isGeneratingPdf)
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+            )
+          else ...[
+            IconButton(
+              icon: const Icon(Icons.download),
+              tooltip: 'Download PDF',
+              onPressed: _downloadAndShare,
+            ),
+            IconButton(
+              icon: const Icon(Icons.share),
+              tooltip: 'Share PDF',
+              onPressed: _downloadAndShare,
+            ),
+          ],
         ],
       ),
       body: SingleChildScrollView(
@@ -299,13 +317,31 @@ class CertificateViewerPage extends StatelessWidget {
         child: Column(
           children: [
             // Certificate Design
-            _CertificateDesign(certificate: certificate),
+            _CertificateDesign(certificate: widget.certificate),
             const SizedBox(height: 32),
             // QR Code Section
             _buildQRCodeSection(),
             const SizedBox(height: 24),
             // Certificate Details
             _buildDetailsSection(),
+            const SizedBox(height: 24),
+            // PDF button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _isGeneratingPdf ? null : _downloadAndShare,
+                icon: _isGeneratingPdf
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.picture_as_pdf),
+                label: Text(_isGeneratingPdf ? 'Generating PDF...' : 'Download / Share PDF'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF3B82F6),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -338,14 +374,14 @@ class CertificateViewerPage extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
             ),
             child: QrImageView(
-              data: certificate.qrCodeData,
+              data: widget.certificate.qrCodeData,
               version: QrVersions.auto,
               size: 200,
             ),
           ),
           const SizedBox(height: 12),
           SelectableText(
-            certificate.verificationUrl,
+            widget.certificate.verificationUrl,
             style: const TextStyle(
               color: Colors.blue,
               fontSize: 12,
@@ -376,17 +412,17 @@ class CertificateViewerPage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          _DetailRow('Certificate Number', certificate.certificateNumber),
-          _DetailRow('Student Name', certificate.studentName),
-          _DetailRow('Course', certificate.courseName),
-          _DetailRow('Grade', certificate.grade),
-          _DetailRow('GPA', certificate.gpa.toStringAsFixed(2)),
-          _DetailRow('Completion Date', DateFormat('MMMM dd, yyyy').format(certificate.completionDate)),
-          _DetailRow('Issued By', certificate.issuedByName),
-          _DetailRow('Issued Date', DateFormat('MMMM dd, yyyy').format(certificate.issuedAt)),
-          _DetailRow('Status', certificate.statusDisplay),
-          if (certificate.remarks != null) 
-            _DetailRow('Remarks', certificate.remarks!),
+          _DetailRow('Certificate Number', widget.certificate.certificateNumber),
+          _DetailRow('Student Name', widget.certificate.studentName),
+          _DetailRow('Course', widget.certificate.courseName),
+          _DetailRow('Grade', widget.certificate.grade),
+          _DetailRow('GPA', widget.certificate.gpa.toStringAsFixed(2)),
+          _DetailRow('Completion Date', DateFormat('MMMM dd, yyyy').format(widget.certificate.completionDate)),
+          _DetailRow('Issued By', widget.certificate.issuedByName),
+          _DetailRow('Issued Date', DateFormat('MMMM dd, yyyy').format(widget.certificate.issuedAt)),
+          _DetailRow('Status', widget.certificate.statusDisplay),
+          if (widget.certificate.remarks != null)
+            _DetailRow('Remarks', widget.certificate.remarks!),
         ],
       ),
     );

@@ -17,6 +17,8 @@ class UserModel {
   final double availableEMC; // Available for spending (balance - staked)
   final bool kycVerified; // KYC verification status
   final int activeLoanCount; // Number of active loans
+  final String? phone; // Phone number
+  final String? bio; // Bio/about text
 
   UserModel({
     required this.uid,
@@ -35,6 +37,8 @@ class UserModel {
     this.availableEMC = 0.0,
     this.kycVerified = false,
     this.activeLoanCount = 0,
+    this.phone,
+    this.bio,
   });
 
   factory UserModel.fromMap(Map<String, dynamic> map, String uid) {
@@ -53,6 +57,8 @@ class UserModel {
       enrolledCourses: List<String>.from(map['enrolledCourses'] ?? []),
       photoUrl: map['photoUrl'],
       session: map['session'],
+      phone: map['phone'],
+      bio: map['bio'],
       createdAt: DateTime.parse(map['createdAt']),
       updatedAt: DateTime.parse(map['updatedAt']),
     );
@@ -75,6 +81,8 @@ class UserModel {
       'availableEMC': availableEMC,
       'kycVerified': kycVerified,
       'activeLoanCount': activeLoanCount,
+      'phone': phone,
+      'bio': bio,
     };
   }
 
@@ -95,6 +103,8 @@ class UserModel {
     double? availableEMC,
     bool? kycVerified,
     int? activeLoanCount,
+    String? phone,
+    String? bio,
   }) {
     return UserModel(
       uid: uid ?? this.uid,
@@ -105,6 +115,8 @@ class UserModel {
       enrolledCourses: enrolledCourses ?? this.enrolledCourses,
       photoUrl: photoUrl ?? this.photoUrl,
       session: session ?? this.session,
+      phone: phone ?? this.phone,
+      bio: bio ?? this.bio,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       totalEMCEarned: totalEMCEarned ?? this.totalEMCEarned,

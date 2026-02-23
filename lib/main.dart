@@ -6,12 +6,13 @@ import 'firebase_options.dart';
 import 'services/auth_service.dart';
 import 'services/firestore_service.dart';
 import 'services/notification_service.dart';
+import 'services/call_service.dart';
+import 'services/push_notification_service.dart';
 import 'screens/login_page.dart';
 import 'screens/admin/admin_panel_page.dart';
 import 'screens/lecturer/lecturer_dashboard_page.dart';
 import 'screens/notifications_page.dart';
 import 'screens/wallet/enhanced_wallet_page.dart';
-import 'screens/student/loan_application_page.dart';
 import 'screens/edit_profile_page.dart';
 import 'screens/settings_page.dart';
 import 'screens/support_page.dart';
@@ -22,8 +23,11 @@ import 'screens/courses_list_page.dart';
 import 'screens/about_info_desk_page.dart';
 import 'screens/blog_news_page.dart';
 import 'screens/daily_tasks_page.dart';
+import 'screens/earn_emc_page.dart';
 import 'screens/scholarship_board_page.dart';
 import 'screens/student_forum_page.dart';
+import 'screens/incoming_call_overlay.dart';
+import 'config/agora_config.dart';
 import 'models/book_model.dart';
 import 'models/transaction_model.dart';
 
@@ -32,6 +36,13 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // Initialize FCM push notifications
+  await PushNotificationService.initialize();
+  
+  // Initialize Agora configuration from Firebase Remote Config
+  await AgoraConfig.initialize();
+  
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -51,6 +62,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthService()),
         ChangeNotifierProvider(create: (_) => FirestoreService()),
         ChangeNotifierProvider(create: (_) => NotificationService()),
+        ChangeNotifierProvider(create: (_) => CallService()),
       ],
       child: MaterialApp(
         title: 'Emtech School',
@@ -409,9 +421,10 @@ class _MainShellState extends State<MainShell> {
       _currentIndex = 0;
     }
     
-    return Scaffold(
-      body: pages[_currentIndex],
-      bottomNavigationBar: Container(
+    return IncomingCallListener(
+      child: Scaffold(
+        body: pages[_currentIndex],
+        bottomNavigationBar: Container(
         decoration: const BoxDecoration(
           color: Color(0xFF0B1120),
           border: Border(
@@ -454,6 +467,7 @@ class _MainShellState extends State<MainShell> {
           items: navItems,
         ),
       ),
+    ),
     );
   }
 }
@@ -852,7 +866,7 @@ class _HomePageState extends State<HomePage> {
     
     // Start listening to notifications if user is logged in
     if (authService.isAuthenticated && authService.userModel != null) {
-      notificationService.getNotificationsStream(authService.userModel!.uid);
+      notificationService.startListening(authService.userModel!.uid);
     }
 
     return GestureDetector(
@@ -1192,7 +1206,7 @@ class _BookshopPageState extends State<BookshopPage> {
 // ─────────────────────────────────────────────
 // Guest wallet page for non-authenticated users
 class _GuestWalletPage extends StatelessWidget {
-  const _GuestWalletPage({super.key});
+  const _GuestWalletPage();
 
   @override
   Widget build(BuildContext context) {
@@ -1277,10 +1291,10 @@ class _GuestWalletPage extends StatelessWidget {
                         Expanded(
                           child: OutlinedButton.icon(
                             onPressed: () {
-                              // TODO: Navigate to earning opportunities
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Complete daily tasks to earn EMC!'),
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const EarnEmcPage(),
                                 ),
                               );
                             },

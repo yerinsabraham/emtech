@@ -33,7 +33,7 @@ class ContentService {
       final filePath = 'content/$courseId/$fileName';
       final ref = _storage.ref().child(filePath);
       
-      final uploadTask = await ref.putFile(file);
+      await ref.putFile(file);
       final fileUrl = await ref.getDownloadURL();
       final fileSizeBytes = (await file.length());
       

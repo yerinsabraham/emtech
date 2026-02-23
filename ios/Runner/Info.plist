@@ -56,5 +56,10 @@
 			</array>
 		</dict>
 	</array>
+	<!-- Permissions for Agora Voice/Video Calling -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app needs access to your microphone to make voice calls to customer support.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>This app needs access to your camera for video calls.</string>
 </dict>
 </plist>

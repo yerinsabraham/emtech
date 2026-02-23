@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/course_model.dart';
 import '../services/firestore_service.dart';
-import '../services/auth_service.dart';
-import 'course_enrollment_page.dart';
+import 'student/course_detail_page.dart';
 
 class CoursesListPage extends StatefulWidget {
   final String? initialCategory; // 'Premium', 'Freemium', or null for all
@@ -16,11 +16,53 @@ class CoursesListPage extends StatefulWidget {
 
 class _CoursesListPageState extends State<CoursesListPage> {
   late String _selectedCategory;
+  bool _isSearching = false;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  Set<String> _bookmarkedIds = {};
 
   @override
   void initState() {
     super.initState();
     _selectedCategory = widget.initialCategory ?? 'All';
+    _loadBookmarks();
+  }
+
+  Future<void> _loadBookmarks() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getStringList('saved_courses') ?? [];
+    if (mounted) setState(() => _bookmarkedIds = Set<String>.from(saved));
+  }
+
+  Future<void> _toggleBookmark(String courseId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getStringList('saved_courses') ?? [];
+    final isNowBookmarked = !saved.contains(courseId);
+    if (isNowBookmarked) {
+      saved.add(courseId);
+    } else {
+      saved.remove(courseId);
+    }
+    await prefs.setStringList('saved_courses', saved);
+    if (mounted) {
+      setState(() => _bookmarkedIds = Set<String>.from(saved));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(isNowBookmarked
+            ? 'Course saved to bookmarks'
+            : 'Course removed from bookmarks'),
+        backgroundColor: isNowBookmarked
+            ? const Color(0xFF3B82F6)
+            : Colors.orange,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+      ));
+    }
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
@@ -32,24 +74,54 @@ class _CoursesListPageState extends State<CoursesListPage> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF0B1120),
         elevation: 0,
-        title: Text(
-          widget.initialCategory != null 
-              ? '${widget.initialCategory} Courses' 
-              : 'All Courses',
-          style: const TextStyle(color: Colors.white),
-        ),
+        title: _isSearching
+            ? TextField(
+                controller: _searchController,
+                autofocus: true,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'Search courses...',
+                  hintStyle: const TextStyle(color: Colors.white38),
+                  border: InputBorder.none,
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                          icon:
+                              const Icon(Icons.close, color: Colors.white54),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() => _searchQuery = '');
+                          },
+                        )
+                      : null,
+                ),
+                onChanged: (value) {
+                  setState(() => _searchQuery = value.trim().toLowerCase());
+                },
+              )
+            : Text(
+                widget.initialCategory != null
+                    ? '${widget.initialCategory} Courses'
+                    : 'All Courses',
+                style: const TextStyle(color: Colors.white),
+              ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.search, color: Colors.white),
+            icon: Icon(
+              _isSearching ? Icons.search_off : Icons.search,
+              color: Colors.white,
+            ),
             onPressed: () {
-              // TODO: Implement search
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Search feature coming soon!')),
-              );
+              setState(() {
+                _isSearching = !_isSearching;
+                if (!_isSearching) {
+                  _searchController.clear();
+                  _searchQuery = '';
+                }
+              });
             },
           ),
         ],
@@ -103,7 +175,41 @@ class _CoursesListPageState extends State<CoursesListPage> {
                   );
                 }
                 
-                final courses = snapshot.data!;
+                // Apply search filter
+                final allCourses = snapshot.data!;
+                final courses = _searchQuery.isEmpty
+                    ? allCourses
+                    : allCourses.where((c) {
+                        return c.title
+                                .toLowerCase()
+                                .contains(_searchQuery) ||
+                            c.description
+                                .toLowerCase()
+                                .contains(_searchQuery) ||
+                            c.instructor
+                                .toLowerCase()
+                                .contains(_searchQuery);
+                      }).toList();
+
+                if (courses.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.search_off,
+                          color: Colors.white24,
+                          size: 64,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No results for "$_searchQuery"',
+                          style: const TextStyle(color: Colors.white54),
+                        ),
+                      ],
+                    ),
+                  );
+                }
                 
                 return ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 18),
@@ -305,6 +411,22 @@ class _CoursesListPageState extends State<CoursesListPage> {
                           Icons.layers_outlined,
                           '${course.modules.length} modules',
                         ),
+                        const Spacer(),
+                        GestureDetector(
+                          onTap: () => _toggleBookmark(course.id),
+                          child: Padding(
+                            padding: const EdgeInsets.only(left: 4),
+                            child: Icon(
+                              _bookmarkedIds.contains(course.id)
+                                  ? Icons.bookmark
+                                  : Icons.bookmark_border,
+                              color: _bookmarkedIds.contains(course.id)
+                                  ? const Color(0xFF3B82F6)
+                                  : Colors.white24,
+                              size: 22,
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ],
@@ -334,176 +456,10 @@ class _CoursesListPageState extends State<CoursesListPage> {
   }
 
   void _showCourseDetails(CourseModel course) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF111C2F),
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.8,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        expand: false,
-        builder: (context, scrollController) => ListView(
-          controller: scrollController,
-          padding: const EdgeInsets.all(24),
-          children: [
-            // Title
-            Text(
-              course.title,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Instructor
-            Row(
-              children: [
-                const CircleAvatar(
-                  radius: 20,
-                  backgroundColor: Color(0xFF3B82F6),
-                  child: Icon(Icons.person, color: Colors.white),
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      course.instructor,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const Text(
-                      'Course Instructor',
-                      style: TextStyle(
-                        color: Colors.white54,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-
-            // Description
-            const Text(
-              'About this course',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              course.description,
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 15,
-                height: 1.6,
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Modules
-            if (course.modules.isNotEmpty) ...[
-              const Text(
-                'Course Modules',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 12),
-              ...course.modules.asMap().entries.map((entry) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 28,
-                        height: 28,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF3B82F6).withOpacity(0.2),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Center(
-                          child: Text(
-                            '${entry.key + 1}',
-                            style: const TextStyle(
-                              color: Color(0xFF3B82F6),
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          entry.value,
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }).toList(),
-              const SizedBox(height: 24),
-            ],
-
-            // Enroll Button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  final authService = context.read<AuthService>();
-                  if (!authService.isAuthenticated) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Please login to enroll in courses'),
-                      ),
-                    );
-                  } else {
-                    // Navigate to CourseEnrollmentPage
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => CourseEnrollmentPage(course: course),
-                      ),
-                    );
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF3B82F6),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-                child: Text(
-                  course.priceEmc == 0 
-                      ? 'Enroll for Free' 
-                      : 'Enroll for ${course.priceEmc} EMC',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CourseDetailPage(course: course),
       ),
     );
   }

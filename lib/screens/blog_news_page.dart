@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/blog_post_model.dart';
-import '../services/mock_data_service.dart';
+import '../services/blog_service.dart';
 
 class BlogNewsPage extends StatefulWidget {
   const BlogNewsPage({super.key});
@@ -12,20 +12,10 @@ class BlogNewsPage extends StatefulWidget {
 
 class _BlogNewsPageState extends State<BlogNewsPage> {
   String _selectedCategory = 'all';
+  final _blogService = BlogService();
 
   @override
   Widget build(BuildContext context) {
-    final posts = MockDataService.getMockBlogPosts();
-    final filteredPosts = posts.where((post) {
-      if (_selectedCategory != 'all' && post.category != _selectedCategory) {
-        return false;
-      }
-      return true;
-    }).toList();
-
-    // Sort by date
-    filteredPosts.sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
-
     return Scaffold(
       backgroundColor: const Color(0xFF080C14),
       appBar: AppBar(
@@ -60,24 +50,41 @@ class _BlogNewsPageState extends State<BlogNewsPage> {
 
           // Blog Posts List
           Expanded(
-            child: filteredPosts.isEmpty
-                ? const Center(
+            child: StreamBuilder<List<BlogPostModel>>(
+              stream: _blogService.getBlogPosts(category: _selectedCategory),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text(
+                      'Error: ${snapshot.error}',
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  );
+                }
+                final posts = snapshot.data ?? [];
+                if (posts.isEmpty) {
+                  return const Center(
                     child: Text(
                       'No posts available',
                       style: TextStyle(color: Colors.white54),
                     ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 18),
-                    itemCount: filteredPosts.length,
-                    itemBuilder: (context, index) {
-                      if (index == 0) {
-                        // Featured post (big card)
-                        return _buildFeaturedPostCard(filteredPosts[index]);
-                      }
-                      return _buildBlogPostCard(filteredPosts[index]);
-                    },
-                  ),
+                  );
+                }
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 18),
+                  itemCount: posts.length,
+                  itemBuilder: (context, index) {
+                    if (index == 0) {
+                      return _buildFeaturedPostCard(posts[index]);
+                    }
+                    return _buildBlogPostCard(posts[index]);
+                  },
+                );
+              },
+            ),
           ),
         ],
       ),

@@ -1,5 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:file_picker/file_picker.dart';
 import '../services/auth_service.dart';
 
 class EditProfilePage extends StatefulWidget {
@@ -18,6 +21,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   late TextEditingController _bioController;
   
   bool _isLoading = false;
+  bool _isUploadingPhoto = false;
 
   @override
   void initState() {
@@ -28,8 +32,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _nameController = TextEditingController(text: userModel?.name ?? '');
     _emailController = TextEditingController(text: userModel?.email ?? '');
     _sessionController = TextEditingController(text: userModel?.session ?? '');
-    _phoneController = TextEditingController();
-    _bioController = TextEditingController();
+    _phoneController = TextEditingController(text: userModel?.phone ?? '');
+    _bioController = TextEditingController(text: userModel?.bio ?? '');
   }
 
   @override
@@ -135,31 +139,34 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       Positioned(
                         bottom: 0,
                         right: 0,
-                        child: GestureDetector(
-                          onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Photo upload coming soon!'),
+                        child: _isUploadingPhoto
+                            ? const SizedBox(
+                                width: 36,
+                                height: 36,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Color(0xFF3B82F6),
+                                ),
+                              )
+                            : GestureDetector(
+                                onTap: _pickAndUploadPhoto,
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF3B82F6),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: const Color(0xFF080C14),
+                                      width: 2,
+                                    ),
+                                  ),
+                                  child: const Icon(
+                                    Icons.camera_alt,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
+                                ),
                               ),
-                            );
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF3B82F6),
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: const Color(0xFF080C14),
-                                width: 2,
-                              ),
-                            ),
-                            child: const Icon(
-                              Icons.camera_alt,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                          ),
-                        ),
                       ),
                     ],
                   ),
@@ -357,6 +364,62 @@ class _EditProfilePageState extends State<EditProfilePage> {
     return '${months[date.month - 1]} ${date.year}';
   }
 
+  Future<void> _pickAndUploadPhoto() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        allowMultiple: false,
+      );
+
+      if (result == null || result.files.isEmpty) return;
+
+      final pickedFile = result.files.first;
+      if (pickedFile.path == null) return;
+
+      setState(() => _isUploadingPhoto = true);
+
+      final authService = context.read<AuthService>();
+      final uid = authService.user?.uid;
+      if (uid == null) return;
+
+      // Upload to Firebase Storage
+      final storageRef = FirebaseStorage.instance
+          .ref()
+          .child('users/$uid/profile/avatar.jpg');
+
+      final uploadTask = storageRef.putFile(
+        File(pickedFile.path!),
+        SettableMetadata(contentType: 'image/jpeg'),
+      );
+
+      final snapshot = await uploadTask;
+      final downloadUrl = await snapshot.ref.getDownloadURL();
+
+      // Update Firestore with new photo URL
+      await authService.updateUserProfile(photoUrl: downloadUrl);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Profile photo updated!'),
+            backgroundColor: Color(0xFF4CAF50),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to upload photo: $e'),
+            backgroundColor: const Color(0xFFFF5252),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUploadingPhoto = false);
+    }
+  }
+
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -370,6 +433,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
       await authService.updateUserProfile(
         name: _nameController.text.trim(),
         session: _sessionController.text.trim(),
+        phone: _phoneController.text.trim().isEmpty
+            ? null
+            : _phoneController.text.trim(),
+        bio: _bioController.text.trim().isEmpty
+            ? null
+            : _bioController.text.trim(),
       );
 
       if (!mounted) return;

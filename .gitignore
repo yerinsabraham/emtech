@@ -43,3 +43,8 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Sensitive configuration files
+/lib/config/agora_config_local.dart
+.env
+*.env

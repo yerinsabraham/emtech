@@ -1,7 +1,14 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import '../models/certificate_model.dart';
 import '../models/grade_model.dart';
 import 'notification_service.dart';
+import 'achievement_service.dart';
 
 class CertificateService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -81,7 +88,15 @@ class CertificateService {
       title: 'Certificate Issued',
       message: 'Your certificate for $courseName has been issued! Grade: $grade',
     );
-    
+
+    // Trigger achievement check for certificate issued
+    final certCount = await _firestore
+        .collection('certificates')
+        .where('studentId', isEqualTo: studentId)
+        .count()
+        .get();
+    unawaited(AchievementService().onCertificateIssued(studentId, certCount.count ?? 1));
+
     return certificate.copyWith(id: docRef.id);
   }
 
@@ -305,5 +320,171 @@ class CertificateService {
             cert.certificateNumber.toLowerCase().contains(query.toLowerCase()) ||
             cert.courseName.toLowerCase().contains(query.toLowerCase()))
         .toList();
+  }
+
+  /// Generate a PDF for the given certificate and trigger the system share/save dialog
+  Future<void> generateAndSharePdf(CertificateModel certificate) async {
+    final pdf = pw.Document();
+
+    // Try to load the app logo; fall back gracefully if asset not found
+    pw.ImageProvider? logoImage;
+    try {
+      final logoData = await rootBundle.load('assets/images/emtechlogo.jpeg');
+      logoImage = pw.MemoryImage(logoData.buffer.asUint8List());
+    } catch (_) {
+      logoImage = null;
+    }
+
+    final gold = PdfColor.fromHex('#D4AF37');
+    final darkText = PdfColor.fromHex('#1A1A1A');
+    final grayText = PdfColor.fromHex('#666666');
+    final lightGray = PdfColor.fromHex('#999999');
+    final creamBg = PdfColor.fromHex('#FFFFF5');
+
+    pdf.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4.landscape,
+        margin: const pw.EdgeInsets.all(0),
+        build: (context) {
+          return pw.Container(
+            decoration: pw.BoxDecoration(
+              color: creamBg,
+              border: pw.Border.all(color: gold, width: 8),
+            ),
+            child: pw.Padding(
+              padding: const pw.EdgeInsets.all(40),
+              child: pw.Column(
+                mainAxisAlignment: pw.MainAxisAlignment.center,
+                children: [
+                  // Logo + school name row
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.center,
+                    children: [
+                      if (logoImage != null) ...[
+                        pw.Image(logoImage, width: 50, height: 50),
+                        pw.SizedBox(width: 12),
+                      ],
+                      pw.Text(
+                        'EMTECH SCHOOL',
+                        style: pw.TextStyle(
+                          fontSize: 30,
+                          fontWeight: pw.FontWeight.bold,
+                          color: darkText,
+                          letterSpacing: 2,
+                        ),
+                      ),
+                    ],
+                  ),
+                  pw.SizedBox(height: 8),
+                  pw.Text(
+                    'Certificate of Completion',
+                    style: pw.TextStyle(
+                      fontSize: 16,
+                      fontStyle: pw.FontStyle.italic,
+                      color: grayText,
+                    ),
+                  ),
+                  pw.SizedBox(height: 20),
+                  pw.Container(width: 200, height: 2, color: gold),
+                  pw.SizedBox(height: 20),
+                  pw.Text(
+                    'This is to certify that',
+                    style: pw.TextStyle(fontSize: 13, color: grayText),
+                  ),
+                  pw.SizedBox(height: 12),
+                  pw.Text(
+                    certificate.studentName,
+                    style: pw.TextStyle(
+                      fontSize: 36,
+                      fontWeight: pw.FontWeight.bold,
+                      color: darkText,
+                    ),
+                  ),
+                  pw.SizedBox(height: 12),
+                  pw.Text(
+                    'has successfully completed the course',
+                    style: pw.TextStyle(fontSize: 13, color: grayText),
+                  ),
+                  pw.SizedBox(height: 8),
+                  pw.Text(
+                    certificate.courseName,
+                    style: pw.TextStyle(
+                      fontSize: 22,
+                      fontWeight: pw.FontWeight.bold,
+                      color: darkText,
+                    ),
+                    textAlign: pw.TextAlign.center,
+                  ),
+                  pw.SizedBox(height: 8),
+                  pw.Text(
+                    'with a grade of ${certificate.grade}  |  GPA: ${certificate.gpa.toStringAsFixed(2)}',
+                    style: pw.TextStyle(fontSize: 13, color: grayText),
+                  ),
+                  pw.SizedBox(height: 24),
+                  pw.Container(width: 200, height: 1, color: PdfColor.fromHex('#CCCCCC')),
+                  pw.SizedBox(height: 20),
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
+                    children: [
+                      _pdfSignatureBlock(
+                        DateFormat('MMMM dd, yyyy').format(certificate.completionDate),
+                        'Date of Completion',
+                        darkText,
+                        lightGray,
+                        gold,
+                      ),
+                      _pdfSignatureBlock(
+                        certificate.issuedByName,
+                        'Authorized Signatory',
+                        darkText,
+                        lightGray,
+                        gold,
+                      ),
+                    ],
+                  ),
+                  pw.SizedBox(height: 16),
+                  pw.Text(
+                    'Certificate No: ${certificate.certificateNumber}',
+                    style: pw.TextStyle(fontSize: 9, color: lightGray),
+                  ),
+                  pw.SizedBox(height: 4),
+                  pw.Text(
+                    'Verify at: ${certificate.verificationUrl}',
+                    style: pw.TextStyle(
+                      fontSize: 9,
+                      color: PdfColor.fromHex('#3B82F6'),
+                      decoration: pw.TextDecoration.underline,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+
+    final bytes = await pdf.save();
+    final filename = 'certificate_${certificate.certificateNumber}.pdf';
+    await Printing.sharePdf(bytes: bytes, filename: filename);
+  }
+
+  static pw.Widget _pdfSignatureBlock(
+    String value,
+    String label,
+    PdfColor darkColor,
+    PdfColor lightColor,
+    PdfColor lineColor,
+  ) {
+    return pw.Column(
+      children: [
+        pw.Container(width: 150, height: 1, color: lightColor),
+        pw.SizedBox(height: 4),
+        pw.Text(value,
+            style: pw.TextStyle(fontSize: 11, color: darkColor)),
+        pw.Text(label,
+            style: pw.TextStyle(fontSize: 9, color: lightColor)),
+      ],
+    );
   }
 }

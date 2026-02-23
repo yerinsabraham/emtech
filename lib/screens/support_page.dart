@@ -1,4 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../services/call_service.dart';
+import '../services/auth_service.dart';
+import '../services/support_service.dart';
+import 'call_screen.dart';
+import '../config/agora_config.dart';
 
 class SupportPage extends StatefulWidget {
   const SupportPage({super.key});
@@ -12,6 +18,8 @@ class _SupportPageState extends State<SupportPage> {
   final _emailController = TextEditingController();
   final _messageController = TextEditingController();
   String _selectedCategory = 'general';
+  bool _submitting = false;
+  final _supportService = SupportService();
 
   @override
   void dispose() {
@@ -105,10 +113,10 @@ class _SupportPageState extends State<SupportPage> {
               const SizedBox(width: 12),
               Expanded(
                 child: _buildQuickAction(
-                  'Live Chat',
-                  Icons.chat_bubble,
+                  'Call Support',
+                  Icons.phone,
                   const Color(0xFF10B981),
-                  () => _showComingSoon('Live Chat'),
+                  () => _initiateCall(),
                 ),
               ),
             ],
@@ -282,7 +290,7 @@ class _SupportPageState extends State<SupportPage> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: _submitSupportRequest,
+              onPressed: _submitting ? null : _submitSupportRequest,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF3B82F6),
                 padding: const EdgeInsets.symmetric(vertical: 16),
@@ -290,13 +298,20 @@ class _SupportPageState extends State<SupportPage> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text(
-                'Submit Request',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              child: _submitting
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2),
+                    )
+                  : const Text(
+                      'Submit Request',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
             ),
           ),
 
@@ -316,7 +331,7 @@ class _SupportPageState extends State<SupportPage> {
           _buildContactMethod(
             Icons.email,
             'Email',
-            'support@emtech.school',
+            'support@emtech.com',
             'Response within 24 hours',
           ),
           _buildContactMethod(
@@ -445,7 +460,7 @@ class _SupportPageState extends State<SupportPage> {
     );
   }
 
-  void _submitSupportRequest() {
+  Future<void> _submitSupportRequest() async {
     if (_nameController.text.isEmpty ||
         _emailController.text.isEmpty ||
         _messageController.text.isEmpty) {
@@ -458,21 +473,83 @@ class _SupportPageState extends State<SupportPage> {
       return;
     }
 
-    // TODO: Implement actual support request submission
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Support request submitted successfully!'),
-        backgroundColor: Colors.green,
-      ),
-    );
+    setState(() => _submitting = true);
+    try {
+      final user = context.read<AuthService>().currentUser;
+      final ticketId = await _supportService.createTicket(
+        userId: user?.uid ?? 'anonymous',
+        userName: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+        category: _selectedCategory,
+        message: _messageController.text.trim(),
+      );
 
-    // Clear form
-    _nameController.clear();
-    _emailController.clear();
-    _messageController.clear();
-    setState(() {
-      _selectedCategory = 'general';
-    });
+      if (!mounted) return;
+
+      // Clear form
+      _nameController.clear();
+      _emailController.clear();
+      _messageController.clear();
+      setState(() {
+        _selectedCategory = 'general';
+        _submitting = false;
+      });
+
+      // Success dialog
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: const Color(0xFF111C2F),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.check_circle, color: Color(0xFF10B981)),
+              SizedBox(width: 10),
+              Text('Ticket Submitted',
+                  style: TextStyle(color: Colors.white, fontSize: 18)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Your support request has been received. We\'ll respond within 24 hours at:',
+                style: TextStyle(color: Colors.white70),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'support@emtech.com',
+                style: TextStyle(
+                    color: Color(0xFF60A5FA), fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Ticket ID: ${ticketId.substring(0, 8).toUpperCase()}',
+                style: const TextStyle(color: Colors.white38, fontSize: 12),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('OK',
+                  style: TextStyle(color: Color(0xFF3B82F6))),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      setState(() => _submitting = false);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error submitting ticket: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   void _showFAQs() {
@@ -559,6 +636,77 @@ class _SupportPageState extends State<SupportPage> {
         ],
       ),
     );
+  }
+
+  Future<void> _initiateCall() async {
+    if (!AgoraConfig.isConfigured) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Call feature is being configured. Please try again later.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    final authService = context.read<AuthService>();
+    final callService = context.read<CallService>();
+
+    if (authService.userModel == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please login to make a call')),
+      );
+      return;
+    }
+
+    // Show loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+
+    try {
+      // Initiate the call
+      final call = await callService.initiateCall(
+        callerId: authService.userModel!.uid,
+        callerName: authService.userModel!.name,
+        callerPhotoUrl: authService.userModel!.photoUrl,
+      );
+
+      // Close loading dialog
+      if (mounted) Navigator.pop(context);
+
+      if (call != null) {
+        // Navigate to call screen
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => CallScreen(
+              call: call,
+              isOutgoing: true,
+              currentUserId: authService.userModel!.uid,
+              currentUserName: authService.userModel!.name,
+            ),
+          ),
+        );
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to initiate call')),
+          );
+        }
+      }
+    } catch (e) {
+      // Close loading dialog
+      if (mounted) Navigator.pop(context);
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    }
   }
 
   void _showComingSoon(String feature) {

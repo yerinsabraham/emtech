@@ -51,8 +51,10 @@ class PaymentSuccessPage extends StatelessWidget {
               
               // Success Message
               Text(
-                'Your payment for $itemName has been processed successfully.',
+                'Your payment has been processed successfully.',
                 textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: Colors.white70,
                   fontSize: 16,
@@ -142,6 +144,7 @@ class PaymentSuccessPage extends StatelessWidget {
   Widget _buildDetailRow(String label, String value, {bool isSuccess = false}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
@@ -150,32 +153,40 @@ class PaymentSuccessPage extends StatelessWidget {
             fontSize: 14,
           ),
         ),
-        if (isSuccess)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.green.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: Colors.green, width: 1),
-            ),
-            child: Text(
+        const SizedBox(width: 12),
+        Flexible(
+          child: if (isSuccess)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.green.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.green, width: 1),
+              ),
+              child: Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.green,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            )
+          else
+            Text(
               value,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
               style: const TextStyle(
-                color: Colors.green,
+                color: Colors.white,
                 fontSize: 14,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w600,
               ),
             ),
-          )
-        else
-          Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+        ),
       ],
     );
   }

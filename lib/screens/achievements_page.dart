@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../services/auth_service.dart';
+import '../services/achievement_service.dart';
 
 class AchievementsPage extends StatelessWidget {
   const AchievementsPage({super.key});
@@ -8,76 +10,8 @@ class AchievementsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final authService = context.watch<AuthService>();
-    
-    // Mock achievements
-    final achievements = [
-      {
-        'icon': Icons.emoji_events,
-        'title': 'First Course',
-        'description': 'Complete your first course',
-        'unlocked': true,
-        'date': '2 weeks ago',
-        'color': const Color(0xFFFFA500),
-      },
-      {
-        'icon': Icons.local_fire_department,
-        'title': '7 Day Streak',
-        'description': 'Learn for 7 consecutive days',
-        'unlocked': true,
-        'date': '1 week ago',
-        'color': const Color(0xFFFF5252),
-      },
-      {
-        'icon': Icons.star,
-        'title': 'Perfect Score',
-        'description': 'Get 100% on an assignment',
-        'unlocked': true,
-        'date': '5 days ago',
-        'color': const Color(0xFFFFD700),
-      },
-      {
-        'icon': Icons.school,
-        'title': 'Knowledge Seeker',
-        'description': 'Enroll in 5 different courses',
-        'unlocked': false,
-        'date': null,
-        'color': const Color(0xFF3B82F6),
-      },
-      {
-        'icon': Icons.workspace_premium,
-        'title': 'Premium Member',
-        'description': 'Purchase your first premium course',
-        'unlocked': true,
-        'date': '3 weeks ago',
-        'color': const Color(0xFF8B5CF6),
-      },
-      {
-        'icon': Icons.people,
-        'title': 'Social Learner',
-        'description': 'Help 10 students in the forum',
-        'unlocked': false,
-        'date': null,
-        'color': const Color(0xFF22C55E),
-      },
-      {
-        'icon': Icons.trending_up,
-        'title': 'Rising Star',
-        'description': 'Earn 5000 EMC tokens',
-        'unlocked': false,
-        'date': null,
-        'color': const Color(0xFF06B6D4),
-      },
-      {
-        'icon': Icons.military_tech,
-        'title': 'Master Graduate',
-        'description': 'Complete 10 courses with distinction',
-        'unlocked': false,
-        'date': null,
-        'color': const Color(0xFFEC4899),
-      },
-    ];
-
-    final unlockedCount = achievements.where((a) => a['unlocked'] as bool).length;
+    final uid = authService.userModel?.uid ?? '';
+    final achievementService = AchievementService();
 
     return Scaffold(
       backgroundColor: const Color(0xFF080C14),
@@ -91,201 +25,271 @@ class AchievementsPage extends StatelessWidget {
         title: const Text(
           'Achievements',
           style: TextStyle(
-            color: Colors.white,
             fontSize: 20,
             fontWeight: FontWeight.w600,
+            color: Colors.white,
           ),
         ),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(18),
-        children: [
-          // Progress Container
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF3B82F6), Color(0xFF8B5CF6)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              children: [
-                const Text(
-                  'Achievement Progress',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      '$unlockedCount',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 48,
-                        fontWeight: FontWeight.bold,
-                      ),
+      body: uid.isEmpty
+          ? const Center(child: Text('Please log in', style: TextStyle(color: Colors.white54)))
+          : StreamBuilder<List<Map<String, dynamic>>>(
+              stream: achievementService.getUserAchievementsStream(uid),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                final items = snapshot.data ?? [];
+                final unlockedCount = items
+                    .where((m) => (m['achievement'] as UserAchievement).unlocked)
+                    .length;
+                final totalEMC = items
+                    .where((m) => (m['achievement'] as UserAchievement).unlocked)
+                    .fold<int>(0, (sum, m) => sum + (m['def'] as AchievementDef).emcReward);
+
+                return SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Summary banner
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF1E3A8A), Color(0xFF3B82F6)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Your Achievements',
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '$unlockedCount / ${items.length} Unlocked',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(4),
+                                      child: LinearProgressIndicator(
+                                        value: items.isEmpty ? 0 : unlockedCount / items.length,
+                                        minHeight: 8,
+                                        backgroundColor: Colors.white24,
+                                        valueColor:
+                                            const AlwaysStoppedAnimation<Color>(Colors.white),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 20),
+                              Column(
+                                children: [
+                                  const Icon(Icons.monetization_on, color: Color(0xFFFFD700), size: 32),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '+$totalEMC EMC',
+                                    style: const TextStyle(
+                                      color: Color(0xFFFFD700),
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  const Text(
+                                    'Earned',
+                                    style: TextStyle(color: Colors.white54, fontSize: 12),
+                                  ),
+                                ],
+                              )
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+
+                        // Unlocked section
+                        if (unlockedCount > 0) ...[
+                          _sectionHeader('Unlocked 🏅'),
+                          ...items
+                              .where((m) => (m['achievement'] as UserAchievement).unlocked)
+                              .map((m) => _AchievementTile(
+                                    def: m['def'] as AchievementDef,
+                                    achievement: m['achievement'] as UserAchievement,
+                                  )),
+                          const SizedBox(height: 16),
+                        ],
+
+                        // Locked section
+                        _sectionHeader('Locked 🔒'),
+                        ...items
+                            .where((m) => !(m['achievement'] as UserAchievement).unlocked)
+                            .map((m) => _AchievementTile(
+                                  def: m['def'] as AchievementDef,
+                                  achievement: m['achievement'] as UserAchievement,
+                                )),
+                        const SizedBox(height: 32),
+                      ],
                     ),
-                    const Text(
-                      ' / ',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 24,
-                      ),
-                    ),
-                    Text(
-                      '${achievements.length}',
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '${((unlockedCount / achievements.length) * 100).toStringAsFixed(0)}% Complete',
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14,
                   ),
-                ),
-                const SizedBox(height: 16),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: LinearProgressIndicator(
-                    value: unlockedCount / achievements.length,
-                    backgroundColor: Colors.white.withOpacity(0.2),
-                    valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-                    minHeight: 8,
-                  ),
-                ),
-              ],
+                );
+              },
             ),
-          ),
-          
-          const SizedBox(height: 24),
-          
-          const Text(
-            'Your Achievements',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 16),
-          
-          // Achievements Grid
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              childAspectRatio: 0.85,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-            ),
-            itemCount: achievements.length,
-            itemBuilder: (context, index) {
-              final achievement = achievements[index];
-              return _buildAchievementCard(achievement);
-            },
-          ),
-        ],
-      ),
     );
   }
 
-  Widget _buildAchievementCard(Map<String, dynamic> achievement) {
-    final unlocked = achievement['unlocked'] as bool;
-    final color = achievement['color'] as Color;
-    
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: unlocked 
-          ? const Color(0xFF111C2F) 
-          : const Color(0xFF111C2F).withOpacity(0.5),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: unlocked ? color.withOpacity(0.5) : const Color(0xFF1E2D4A),
-          width: unlocked ? 1.5 : 0.5,
+  Widget _sectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Text(
+        title,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
         ),
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+    );
+  }
+}
+
+class _AchievementTile extends StatelessWidget {
+  final AchievementDef def;
+  final UserAchievement achievement;
+
+  const _AchievementTile({required this.def, required this.achievement});
+
+  Color get _accentColor {
+    try {
+      final hex = def.colorHex.replaceFirst('#', '');
+      return Color(int.parse('FF$hex', radix: 16));
+    } catch (_) {
+      return Colors.blue;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasProgress = def.id == 'five_enrollments' ||
+        def.id == 'forum_contributor' ||
+        def.id == 'streak_7' ||
+        def.id == 'master_graduate';
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: achievement.unlocked
+            ? _accentColor.withOpacity(0.12)
+            : const Color(0xFF111C2F),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: achievement.unlocked ? _accentColor.withOpacity(0.4) : const Color(0xFF1E2D4A),
+          width: 1,
+        ),
+      ),
+      child: Row(
         children: [
+          // Icon badge
           Container(
-            padding: const EdgeInsets.all(16),
+            width: 52,
+            height: 52,
             decoration: BoxDecoration(
-              color: unlocked ? color.withOpacity(0.2) : Colors.grey.withOpacity(0.1),
+              color: achievement.unlocked
+                  ? _accentColor.withOpacity(0.2)
+                  : Colors.white.withOpacity(0.05),
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              achievement['icon'] as IconData,
-              size: 40,
-              color: unlocked ? color : Colors.grey,
+            child: Center(
+              child: achievement.unlocked
+                  ? Text(def.icon, style: const TextStyle(fontSize: 26))
+                  : const Icon(Icons.lock, color: Colors.white24, size: 24),
             ),
           ),
-          const SizedBox(height: 12),
-          Text(
-            achievement['title'],
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: unlocked ? Colors.white : Colors.grey,
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
+          const SizedBox(width: 14),
+          // Text
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  def.title,
+                  style: TextStyle(
+                    color: achievement.unlocked ? Colors.white : Colors.white54,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  def.description,
+                  style: const TextStyle(color: Colors.white38, fontSize: 12),
+                ),
+                if (hasProgress && !achievement.unlocked) ...[
+                  const SizedBox(height: 6),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: achievement.targetProgress > 0
+                          ? achievement.currentProgress / achievement.targetProgress
+                          : 0,
+                      minHeight: 6,
+                      backgroundColor: Colors.white12,
+                      valueColor: AlwaysStoppedAnimation<Color>(_accentColor),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${achievement.currentProgress} / ${achievement.targetProgress}',
+                    style: const TextStyle(color: Colors.white38, fontSize: 11),
+                  ),
+                ],
+                if (achievement.unlocked && achievement.unlockedAt != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    'Unlocked ${DateFormat('MMM d, yyyy').format(achievement.unlockedAt!)}',
+                    style: const TextStyle(color: Colors.white38, fontSize: 11),
+                  ),
+                ],
+              ],
             ),
           ),
-          const SizedBox(height: 6),
-          Text(
-            achievement['description'],
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: unlocked ? Colors.white54 : Colors.grey.withOpacity(0.5),
-              fontSize: 11,
-            ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          if (unlocked && achievement['date'] != null) ...[
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                achievement['date'],
-                style: TextStyle(
-                  color: color,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
+          const SizedBox(width: 8),
+          // EMC badge
+          Column(
+            children: [
+              const Icon(Icons.monetization_on, color: Color(0xFFFFD700), size: 16),
+              Text(
+                '+${def.emcReward}',
+                style: const TextStyle(
+                  color: Color(0xFFFFD700),
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-            ),
-          ],
-          if (!unlocked)
-            const Padding(
-              padding: EdgeInsets.only(top: 8),
-              child: Icon(
-                Icons.lock,
-                size: 16,
-                color: Colors.grey,
-              ),
-            ),
+            ],
+          ),
         ],
       ),
     );
   }
 }
+

@@ -73,46 +73,154 @@ service cloud.firestore {
       allow update, delete: if false;
     }
     
-    // Assignments collection (future)
+    // Assignments collection
     match /assignments/{assignmentId} {
-      // Students can read assignments for their enrolled courses
+      // Authenticated users can read assignments
       allow read: if isAuthenticated();
       
-      // Only lecturers/admins can create/update
-      allow write: if false; // Will be enabled with admin panel
+      // Only lecturers/admins can create/update/delete
+      allow create, update: if isLecturerOrAdmin();
+      allow delete: if isLecturerOrAdmin();
     }
     
-    // Submissions collection (future)
+    // Submissions collection
     match /submissions/{submissionId} {
-      // Students can read their own submissions
+      // Students can read their own submissions; lecturers/admins can read all
       allow read: if isAuthenticated() 
-        && resource.data.userId == request.auth.uid;
+        && (resource.data.studentId == request.auth.uid || isLecturerOrAdmin());
       
       // Students can create their own submissions
       allow create: if isAuthenticated() 
-        && request.resource.data.userId == request.auth.uid;
+        && request.resource.data.studentId == request.auth.uid;
       
-      // Students cannot update after submission (prevent cheating)
-      allow update, delete: if false;
+      // Lecturers/admins can update (for grading); no deletes except by admin
+      allow update: if isLecturerOrAdmin();
+      allow delete: if isAdmin();
     }
     
-    // Grades collection (future)
+    // Grades collection
     match /grades/{gradeId} {
-      // Students can read their own grades
+      // Students can read their own grades; lecturers/admins can read all
       allow read: if isAuthenticated() 
-        && resource.data.userId == request.auth.uid;
+        && (resource.data.studentId == request.auth.uid || isLecturerOrAdmin());
       
       // Only lecturers/admins can create/update grades
-      allow write: if false; // Will be enabled with admin panel
+      allow create, update: if isLecturerOrAdmin();
+      allow delete: if isAdmin();
     }
     
-    // Certificates collection (future - blockchain backed)
+    // Certificates collection
     match /certificates/{certificateId} {
-      // Anyone can read certificates (for verification)
+      // Anyone can read certificates (for public verification)
       allow read: if true;
       
-      // Only system can create certificates
-      allow write: if false;
+      // Only lecturers/admins can issue/revoke certificates
+      allow create, update: if isLecturerOrAdmin();
+      allow delete: if isAdmin();
+    }
+    
+    // Forum posts collection
+    match /forumPosts/{postId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() 
+        && request.resource.data.authorId == request.auth.uid;
+      allow update: if isAuthenticated() 
+        && (resource.data.authorId == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() 
+        && (resource.data.authorId == request.auth.uid || isAdmin());
+      
+      // Replies subcollection
+      match /replies/{replyId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated() 
+          && request.resource.data.authorId == request.auth.uid;
+        allow update: if isAuthenticated() 
+          && (resource.data.authorId == request.auth.uid || isAdmin());
+        allow delete: if isAuthenticated() 
+          && (resource.data.authorId == request.auth.uid || isAdmin());
+      }
+    }
+    
+    // Blog posts collection
+    match /blogPosts/{postId} {
+      // Anyone can read published blog posts
+      allow read: if true;
+      // Only admins can create/update/delete blog posts
+      allow write: if isAdmin();
+    }
+    
+    // Daily tasks definitions (admin-managed)
+    match /dailyTasks/{taskId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    
+    // User daily task completions
+    match /userDailyTasks/{userId}/completions/{completionId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId);
+      allow update, delete: if isAdmin();
+    }
+    
+    // Support tickets
+    match /supportTickets/{ticketId} {
+      allow read: if isAuthenticated() 
+        && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() 
+        && request.resource.data.userId == request.auth.uid;
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+    
+    // Enrollments collection
+    match /enrollments/{enrollmentId} {
+      allow read: if isAuthenticated() 
+        && (resource.data.userId == request.auth.uid || isLecturerOrAdmin());
+      allow create: if isAuthenticated() 
+        && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() 
+        && (resource.data.userId == request.auth.uid || isLecturerOrAdmin());
+      allow delete: if isAdmin();
+    }
+    
+    // Live classes collection
+    match /liveClasses/{classId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isLecturerOrAdmin();
+      allow delete: if isLecturerOrAdmin();
+
+      // Live class chat messages
+      match /messages/{messageId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated()
+          && request.resource.data.senderId == request.auth.uid;
+        allow update, delete: if isAdmin();
+      }
+    }
+    
+    // Calls collection
+    match /calls/{callId} {
+      allow read: if isAuthenticated() 
+        && (resource.data.callerId == request.auth.uid 
+          || resource.data.receiverId == request.auth.uid 
+          || isAdmin());
+      allow create: if isAuthenticated() 
+        && request.resource.data.callerId == request.auth.uid;
+      allow update: if isAuthenticated() 
+        && (resource.data.callerId == request.auth.uid 
+          || resource.data.receiverId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+    
+    // Notifications collection
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() 
+        && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() 
+        && resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() 
+        && resource.data.userId == request.auth.uid;
     }
     
     // Stakes collection
@@ -180,6 +288,32 @@ service cloud.firestore {
       
       // Only admins can create/update scholarships
       allow write: if isAdmin();
+    }
+
+    // Loan payments collection
+    match /loan_payments/{paymentId} {
+      // Users can read their own loan payments; admins can read all
+      allow read: if isAuthenticated()
+        && (resource.data.studentId == request.auth.uid || isAdmin());
+      
+      // Users can create their own loan payments
+      allow create: if isAuthenticated()
+        && request.resource.data.studentId == request.auth.uid;
+      
+      // Admins can update (for reconciliation); no deletes
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // User achievements collection (keyed by uid)
+    match /userAchievements/{userId} {
+      // Users can read their own achievements; admins can read all
+      allow read: if isOwner(userId) || isAdmin();
+      
+      // Any authenticated user can write (achievement triggers fire in the
+      // context of the acting user, which may differ from the target userId
+      // e.g. a lecturer grading an assignment triggers the student's achievement)
+      allow write: if isAuthenticated();
     }
   }
 }

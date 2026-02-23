@@ -11,10 +11,16 @@ import '../../models/grade_model.dart';
 import '../../models/submission_model.dart';
 import '../../services/assignment_service.dart';
 import '../../services/exam_service.dart';
-import '../../services/content_service.dart';
 import '../../services/grading_service.dart';
+import '../../models/loan_model.dart';
+import '../../models/user_model.dart';
+import '../../services/loan_service.dart';
 import 'loan_application_page.dart';
+import 'loan_repayment_page.dart';
 import 'my_certificates_page.dart';
+import 'assignment_submission_page.dart';
+import 'exam_taking_page.dart';
+import 'content_viewer_page.dart';
 
 class StudentDashboardPage extends StatefulWidget {
   const StudentDashboardPage({super.key});
@@ -60,15 +66,10 @@ class _StudentDashboardPageState extends State<StudentDashboardPage>
         actions: [
           IconButton(
             icon: const Icon(Icons.account_balance),
-            tooltip: 'Apply for Loan',
+            tooltip: 'My Loans',
             onPressed: () {
               if (userModel != null) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => LoanApplicationPage(userModel: userModel),
-                  ),
-                );
+                _showLoanPortal(context, userModel);
               }
             },
           ),
@@ -114,6 +115,18 @@ class _StudentDashboardPageState extends State<StudentDashboardPage>
     }
     
     return MyCertificatesPage(userModel: userModel);
+  }
+
+  void _showLoanPortal(BuildContext context, UserModel userModel) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF0B1120),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _LoanPortalSheet(userModel: userModel),
+    );
   }
 }
 
@@ -425,8 +438,13 @@ class _StudentAssignmentCard extends StatelessWidget {
                       width: double.infinity,
                       child: ElevatedButton.icon(
                         onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Submit assignment dialog')),
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => AssignmentSubmissionPage(
+                                assignment: assignment,
+                              ),
+                            ),
                           );
                         },
                         icon: const Icon(Icons.upload),
@@ -619,8 +637,11 @@ class _StudentExamCard extends StatelessWidget {
                       width: double.infinity,
                       child: ElevatedButton.icon(
                         onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Start exam')),
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ExamTakingPage(exam: exam),
+                            ),
                           );
                         },
                         icon: const Icon(Icons.play_arrow),
@@ -726,9 +747,11 @@ class _ContentMaterialCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
         onTap: () {
-          ContentService().incrementViewCount(content.id);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Open: ${content.title}')),
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ContentViewerPage(content: content),
+            ),
           );
         },
         child: Padding(
@@ -1058,6 +1081,337 @@ class _InfoChip extends StatelessWidget {
           Icon(icon, size: 14, color: Colors.white70),
           const SizedBox(width: 4),
           Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Loan Portal bottom sheet
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _LoanPortalSheet extends StatelessWidget {
+  final UserModel userModel;
+  const _LoanPortalSheet({required this.userModel});
+
+  static const _statusColors = {
+    LoanStatus.pending: Color(0xFFF59E0B),
+    LoanStatus.underReview: Color(0xFF8B5CF6),
+    LoanStatus.approved: Color(0xFF3B82F6),
+    LoanStatus.rejected: Color(0xFFEF4444),
+    LoanStatus.disbursed: Color(0xFF10B981),
+    LoanStatus.active: Color(0xFF10B981),
+    LoanStatus.completed: Color(0xFF6B7280),
+    LoanStatus.defaulted: Color(0xFFEF4444),
+  };
+
+  static const _statusLabels = {
+    LoanStatus.pending: 'Pending Review',
+    LoanStatus.underReview: 'Under Review',
+    LoanStatus.approved: 'Approved',
+    LoanStatus.rejected: 'Rejected',
+    LoanStatus.disbursed: 'Disbursed',
+    LoanStatus.active: 'Active',
+    LoanStatus.completed: 'Completed',
+    LoanStatus.defaulted: 'Defaulted',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final loanService = LoanService();
+    return DraggableScrollableSheet(
+      initialChildSize: 0.75,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (_, scrollController) => Column(
+        children: [
+          // Handle + header
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+            decoration: const BoxDecoration(
+              color: Color(0xFF0B1120),
+              borderRadius:
+                  BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: Column(
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'My Loans',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => LoanApplicationPage(
+                                userModel: userModel),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.add, size: 16),
+                      label: const Text('Apply'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF3B82F6),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 8),
+                        textStyle: const TextStyle(fontSize: 13),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          // Loan list
+          Expanded(
+            child: StreamBuilder<List<LoanModel>>(
+              stream: loanService.getStudentLoans(userModel.uid),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: CircularProgressIndicator(
+                        color: Color(0xFF3B82F6)),
+                  );
+                }
+                final loans = snapshot.data ?? [];
+                if (loans.isEmpty) {
+                  return Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.account_balance_outlined,
+                          color: Colors.white24, size: 56),
+                      const SizedBox(height: 14),
+                      const Text(
+                        'No loans yet',
+                        style: TextStyle(
+                            color: Colors.white38, fontSize: 16),
+                      ),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Apply for an EMC loan to get started',
+                        style: TextStyle(
+                            color: Colors.white24, fontSize: 12),
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => LoanApplicationPage(
+                                  userModel: userModel),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.add),
+                        label: const Text('Apply for a Loan'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF3B82F6),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                    ],
+                  );
+                }
+                return ListView.builder(
+                  controller: scrollController,
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                  itemCount: loans.length,
+                  itemBuilder: (_, i) {
+                    final loan = loans[i];
+                    final color = _statusColors[loan.status] ??
+                        const Color(0xFF6B7280);
+                    final label =
+                        _statusLabels[loan.status] ?? loan.status.name;
+                    final isActive = loan.status == LoanStatus.active;
+                    final isOverdue = isActive &&
+                        loan.nextPaymentDue != null &&
+                        DateTime.now().isAfter(loan.nextPaymentDue!);
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF111C2F),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isOverdue
+                              ? const Color(0xFFEF4444)
+                                  .withValues(alpha: 0.4)
+                              : const Color(0xFF2A3F5F)
+                                  .withValues(alpha: 0.5),
+                        ),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    loan.purpose,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        color.withValues(alpha: 0.15),
+                                    borderRadius:
+                                        BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    label,
+                                    style: TextStyle(
+                                      color: color,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                _LoanInfoPill(
+                                  label:
+                                      '${loan.approvedAmount > 0 ? loan.approvedAmount : loan.requestedAmount} EMC',
+                                  icon: Icons.token,
+                                  color: const Color(0xFFF59E0B),
+                                ),
+                                const SizedBox(width: 8),
+                                if (isActive)
+                                  _LoanInfoPill(
+                                    label:
+                                        '${loan.outstandingBalance.toStringAsFixed(0)} left',
+                                    icon: Icons.account_balance_wallet,
+                                    color: const Color(0xFF3B82F6),
+                                  ),
+                                if (isOverdue) ...[
+                                  const SizedBox(width: 8),
+                                  const _LoanInfoPill(
+                                    label: 'OVERDUE',
+                                    icon: Icons.warning_amber,
+                                    color: Color(0xFFEF4444),
+                                  ),
+                                ],
+                              ],
+                            ),
+                            if (isActive) ...[
+                              const SizedBox(height: 10),
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                  onPressed: () {
+                                    Navigator.pop(context);
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) =>
+                                            LoanRepaymentPage(
+                                          loan: loan,
+                                          userModel: userModel,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  icon: const Icon(Icons.send_rounded,
+                                      size: 16),
+                                  label: const Text(
+                                      'Make Repayment'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor:
+                                        isOverdue
+                                            ? const Color(0xFFEF4444)
+                                            : const Color(0xFF10B981),
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 10),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LoanInfoPill extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Color color;
+  const _LoanInfoPill(
+      {required this.label, required this.icon, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding:
+          const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 12),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+                color: color,
+                fontSize: 11,
+                fontWeight: FontWeight.w600),
+          ),
         ],
       ),
     );
