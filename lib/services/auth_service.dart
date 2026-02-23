@@ -7,7 +7,7 @@ import '../models/user_model.dart';
 class AuthService extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: ['email', 'profile']);
 
   User? _user;
   UserModel? _userModel;
@@ -123,10 +123,7 @@ class AuthService extends ChangeNotifier {
     required String password,
   }) async {
     try {
-      await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      await _auth.signInWithEmailAndPassword(email: email, password: password);
       return null;
     } on FirebaseAuthException catch (e) {
       return e.message ?? 'An error occurred during sign in';
@@ -140,14 +137,15 @@ class AuthService extends ChangeNotifier {
     try {
       // Trigger the authentication flow
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      
+
       if (googleUser == null) {
         // User cancelled the sign-in
         return 'Sign in cancelled';
       }
 
       // Obtain the auth details from the request
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
 
       // Create a new credential
       final credential = GoogleAuthProvider.credential(
@@ -160,8 +158,11 @@ class AuthService extends ChangeNotifier {
 
       // Check if user document exists, if not create one
       if (userCredential.user != null) {
-        final doc = await _firestore.collection('users').doc(userCredential.user!.uid).get();
-        
+        final doc = await _firestore
+            .collection('users')
+            .doc(userCredential.user!.uid)
+            .get();
+
         if (!doc.exists) {
           // Create new user document for first-time Google sign-in
           final newUser = UserModel(
@@ -207,7 +208,7 @@ class AuthService extends ChangeNotifier {
         }
         notifyListeners();
       }
-      
+
       return null;
     } on FirebaseAuthException catch (e) {
       return e.message ?? 'An error occurred during Google sign in';
@@ -272,7 +273,7 @@ class AuthService extends ChangeNotifier {
 
     try {
       final newBalance = _userModel!.emcBalance + amount;
-      
+
       await _firestore.collection('users').doc(_user!.uid).update({
         'emcBalance': newBalance,
         'updatedAt': DateTime.now().toIso8601String(),
@@ -295,7 +296,7 @@ class AuthService extends ChangeNotifier {
 
     try {
       final newBalance = _userModel!.emcBalance - amount;
-      
+
       await _firestore.collection('users').doc(_user!.uid).update({
         'emcBalance': newBalance,
         'updatedAt': DateTime.now().toIso8601String(),

@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "478526312567-996e9l00c5n2fjr493vd7h1q9bailgo7.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.emtech.emtech_school",
+            "certificate_hash": "7d43d353a9fcf104396c5f229f01952eb6c808a2"
+          }
+        },
+        {
           "client_id": "478526312567-vbsob86ous911sglspmeqr9gfk0tdr7s.apps.googleusercontent.com",
           "client_type": 3
         }
@@ -29,6 +37,13 @@
             {
               "client_id": "478526312567-vbsob86ous911sglspmeqr9gfk0tdr7s.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "478526312567-e6folqlvl9113dckgtl4vkqe4bf0rgjr.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.emtech.emtechSchool"
+              }
             }
           ]
         }
